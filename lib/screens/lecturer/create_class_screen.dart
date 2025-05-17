@@ -78,7 +78,7 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.of(context).pop();
+          Navigator.of(context).pop(true);
         }
       } else if (classProvider.status == ClassProviderStatus.error) {
         if (mounted) {

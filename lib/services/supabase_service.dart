@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/user_model.dart' as app_models;
 import '../models/class_model.dart';
 import '../models/class_member_model.dart';
+import '../models/announcement_model.dart';
+import '../models/resource_model.dart';
+import 'package:path/path.dart' as path;
 
 class SupabaseService {
   final SupabaseClient _client;
@@ -361,6 +365,322 @@ class SupabaseService {
     }
   }
 
+  // Create a new announcement
+  Future<AnnouncementModel> createAnnouncement({
+    required String classId,
+    required String title,
+    required String message,
+  }) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+      
+      // Check if user is the creator of the class (only lecturers can post)
+      final classData = await _client
+          .from('classes')
+          .select()
+          .eq('id', classId)
+          .eq('created_by', currentUser.id)
+          .limit(1);
+      
+      if ((classData as List).isEmpty) {
+        throw Exception('You do not have permission to post announcements in this class');
+      }
+      
+      // Get lecturer name from profiles
+      final profileData = await _client
+          .from('profiles')
+          .select('full_name')
+          .eq('id', currentUser.id)
+          .single();
+      
+      final lecturerName = profileData['full_name'] as String;
+      
+      // Generate UUID for the announcement
+      final uuid = Uuid();
+      final announcementId = uuid.v4();
+      
+      // Create announcement record - only include fields that exist in the database table
+      final announcementData = {
+        'id': announcementId,
+        'class_id': classId,
+        'title': title,
+        'message': message,
+        'posted_by': currentUser.id,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+      
+      await _client.from('announcements').insert(announcementData);
+      
+      // Return the announcement model with the lecturer name included
+      final completeData = {
+        ...announcementData,
+        'posted_by_name': lecturerName
+      };
+      
+      return AnnouncementModel.fromJson(completeData);
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  // Get announcements for a class
+  Future<List<AnnouncementModel>> getClassAnnouncements(String classId) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+      
+      // Check if user has access to the class
+      bool hasAccess = false;
+      
+      // Check if user is the lecturer
+      final lecturerCheck = await _client
+          .from('classes')
+          .select()
+          .eq('id', classId)
+          .eq('created_by', currentUser.id);
+      
+      if ((lecturerCheck as List).isNotEmpty) {
+        hasAccess = true;
+      } else {
+        // Check if user is a student in the class
+        final studentCheck = await _client
+            .from('class_members')
+            .select()
+            .eq('class_id', classId)
+            .eq('user_id', currentUser.id);
+        
+        if ((studentCheck as List).isNotEmpty) {
+          hasAccess = true;
+        }
+      }
+      
+      if (!hasAccess) {
+        throw Exception('You do not have access to this class');
+      }
+      
+      // Fetch announcements
+      final announcements = await _client
+          .from('announcements')
+          .select()
+          .eq('class_id', classId)
+          .order('created_at', ascending: false);
+
+      // Create a list to store the result
+      final List<AnnouncementModel> result = [];
+      
+      // Process each announcement
+      for (final announcement in announcements) {
+        // Fetch the poster's profile information
+        final posterProfile = await _client
+            .from('profiles')
+            .select('full_name')
+            .eq('id', announcement['posted_by'])
+            .single();
+            
+        // Create an announcement model with the profile data
+        final announcementData = {...announcement};
+        announcementData['posted_by_name'] = posterProfile['full_name'];
+        
+        result.add(AnnouncementModel.fromJson(announcementData));
+      }
+      
+      return result;
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  // Upload a resource file
+  Future<ResourceModel> uploadResource({
+    required String classId,
+    required String title,
+    required File file,
+  }) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+      
+      // Check if user is the creator of the class (only lecturers can upload)
+      final classData = await _client
+          .from('classes')
+          .select()
+          .eq('id', classId)
+          .eq('created_by', currentUser.id)
+          .limit(1);
+      
+      if ((classData as List).isEmpty) {
+        throw Exception('You do not have permission to upload resources to this class');
+      }
+      
+      // Get lecturer name from profiles
+      final profileData = await _client
+          .from('profiles')
+          .select('full_name')
+          .eq('id', currentUser.id)
+          .single();
+      
+      final lecturerName = profileData['full_name'] as String;
+      
+      // Generate UUID for the resource
+      final uuid = Uuid();
+      final resourceId = uuid.v4();
+      
+      // Process the file for upload
+      final originalFileName = path.basename(file.path);
+      final fileExtension = originalFileName.split('.').last.toLowerCase();
+      final fileName = '${resourceId}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+      final storagePath = 'resources/$classId/$fileName';
+      
+      print('Preparing to upload file: $originalFileName');
+      print('Storage path: $storagePath');
+      
+      // Ensure the file exists and is readable
+      if (!await file.exists()) {
+        throw Exception('File does not exist: ${file.path}');
+      }
+      
+      // Get file size for logging
+      final fileSize = await file.length();
+      print('File size: $fileSize bytes');
+      
+      // Read file as bytes for upload
+      final fileBytes = await file.readAsBytes();
+      
+      try {
+        // Upload file to Supabase Storage using bytes
+        await _client.storage.from('educonnect').uploadBinary(
+          storagePath,
+          fileBytes,
+          fileOptions: const FileOptions(
+            cacheControl: '3600',
+            upsert: true,
+          ),
+        );
+        
+        print('File uploaded successfully');
+        
+        // Get the public URL
+        final fileUrl = _client.storage.from('educonnect').getPublicUrl(storagePath);
+        print('File URL: $fileUrl');
+        
+        // Determine file type from extension for the model (but don't store in DB)
+        String fileType = 'Other';
+        switch(fileExtension.toLowerCase()) {
+          case 'pdf': fileType = 'PDF'; break;
+          case 'doc': case 'docx': fileType = 'Word'; break;
+          case 'xls': case 'xlsx': fileType = 'Excel'; break;
+          case 'ppt': case 'pptx': fileType = 'PowerPoint'; break;
+          case 'jpg': case 'jpeg': case 'png': case 'gif': fileType = 'Image'; break;
+          case 'txt': fileType = 'Text'; break;
+        }
+        
+        // Create resource record - REMOVED file_type field that doesn't exist in the DB
+        final resourceData = {
+          'id': resourceId,
+          'class_id': classId,
+          'file_url': fileUrl,
+          'title': title,
+          'uploaded_by': currentUser.id,
+          'created_at': DateTime.now().toIso8601String(),
+        };
+        
+        // Insert the record into the resources table
+        await _client.from('resources').insert(resourceData);
+        
+        // Return the resource model with the lecturer name included and file type for display
+        final completeData = {
+          ...resourceData,
+          'uploaded_by_name': lecturerName,
+          'file_type': fileType // Add this for the model but it's not in the DB
+        };
+        
+        return ResourceModel.fromJson(completeData);
+      } catch (storageError) {
+        print('Storage error: $storageError');
+        throw Exception('Failed to upload file: $storageError');
+      }
+    } catch (e) {
+      print('Upload resource error: $e');
+      rethrow;
+    }
+  }
+  
+  // Get resources for a class
+  Future<List<ResourceModel>> getClassResources(String classId) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+      
+      // Check if user has access to the class
+      bool hasAccess = false;
+      
+      // Check if user is the lecturer
+      final lecturerCheck = await _client
+          .from('classes')
+          .select()
+          .eq('id', classId)
+          .eq('created_by', currentUser.id);
+      
+      if ((lecturerCheck as List).isNotEmpty) {
+        hasAccess = true;
+      } else {
+        // Check if user is a student in the class
+        final studentCheck = await _client
+            .from('class_members')
+            .select()
+            .eq('class_id', classId)
+            .eq('user_id', currentUser.id);
+        
+        if ((studentCheck as List).isNotEmpty) {
+          hasAccess = true;
+        }
+      }
+      
+      if (!hasAccess) {
+        throw Exception('You do not have access to this class');
+      }
+      
+      // Fetch resources
+      final resources = await _client
+          .from('resources')
+          .select()
+          .eq('class_id', classId)
+          .order('created_at', ascending: false);
+
+      // Create a list to store the result
+      final List<ResourceModel> result = [];
+      
+      // Process each resource
+      for (final resource in resources) {
+        // Fetch the uploader's profile information
+        final uploaderProfile = await _client
+            .from('profiles')
+            .select('full_name')
+            .eq('id', resource['uploaded_by'])
+            .single();
+            
+        // Create a resource model with the profile data
+        final resourceData = {...resource};
+        resourceData['uploaded_by_name'] = uploaderProfile['full_name'];
+        
+        result.add(ResourceModel.fromJson(resourceData));
+      }
+      
+      return result;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Delete a class (for lecturers)
   Future<void> deleteClass(String classId) async {
     try {
@@ -385,31 +705,30 @@ class SupabaseService {
         throw Exception('You do not have permission to delete this class');
       }
       
-      // Delete memberships first (needed to handle foreign key constraints)
-      final deleteMembers = await _client
+      // Delete resources first
+      await _client
+          .from('resources')
+          .delete()
+          .eq('class_id', classId);
+      
+      // Delete announcements
+      await _client
+          .from('announcements')
+          .delete()
+          .eq('class_id', classId);
+      
+      // Delete memberships
+      await _client
           .from('class_members')
           .delete()
           .eq('class_id', classId);
       
-      print("Deleted members response: $deleteMembers");
-      
       // Then delete the class itself
-      final deleteClass = await _client
+      await _client
           .from('classes')
           .delete()
-          .eq('id', classId)
-          .select();
-      
-      print("Deleted class response: $deleteClass");
-      
-      // If we got here without an exception, but there's no data in the response,
-      // it might mean the row wasn't actually deleted
-      if ((deleteClass as List).isEmpty) {
-        print("Warning: Delete operation didn't return data. This may indicate it failed silently.");
-      }
-      
+          .eq('id', classId);
     } catch (e) {
-      print("Error deleting class: $e");
       rethrow;
     }
   }

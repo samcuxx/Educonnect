@@ -56,7 +56,7 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.of(context).pop();
+          Navigator.of(context).pop(true);
         }
       } else if (classProvider.status == ClassProviderStatus.error) {
         if (mounted) {

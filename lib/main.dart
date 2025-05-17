@@ -5,8 +5,7 @@ import 'services/supabase_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/class_provider.dart';
 import 'screens/auth/login_screen.dart';
-import 'screens/student/student_dashboard.dart';
-import 'screens/lecturer/lecturer_dashboard.dart';
+import 'screens/class_dashboard_screen.dart';
 import 'models/user_model.dart';
 
 // Replace these with your own Supabase project credentials
@@ -78,14 +77,7 @@ class AuthWrapper extends StatelessWidget {
       return const LoginScreen();
     }
 
-    // Show different dashboards based on user type
-    if (authProvider.currentUser is Student) {
-      return const StudentDashboard();
-    } else if (authProvider.currentUser is Lecturer) {
-      return const LecturerDashboard();
-    }
-
-    // Fallback to login screen
-    return const LoginScreen();
+    // Show unified dashboard for both user types
+    return const ClassDashboardScreen();
   }
 }
