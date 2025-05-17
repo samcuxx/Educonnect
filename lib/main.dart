@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'services/supabase_service.dart';
 import 'providers/auth_provider.dart';
+import 'providers/class_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/student/student_dashboard.dart';
 import 'screens/lecturer/lecturer_dashboard.dart';
@@ -27,6 +28,9 @@ void main() async {
       providers: [
         ChangeNotifierProvider(
           create: (_) => AuthProvider(supabaseService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ClassProvider(supabaseService),
         ),
       ],
       child: const MyApp(),

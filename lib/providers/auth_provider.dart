@@ -24,6 +24,7 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isStudent => _currentUser is Student;
   bool get isLecturer => _currentUser is Lecturer;
+  SupabaseService get supabaseService => _supabaseService;
   
   AuthProvider(this._supabaseService) {
     // Check for existing session on initialization
@@ -152,12 +153,18 @@ class AuthProvider extends ChangeNotifier {
     }
   }
   
-  // Sign out
-  Future<void> signOut() async {
+  // Sign out - Now this includes global state reset
+  // The resetClassProvider parameter should be set by the UI when calling this method
+  Future<void> signOut({Function? resetClassProvider}) async {
     _status = AuthStatus.loading;
     notifyListeners();
     
     try {
+      // If a reset function was provided, call it to reset other providers
+      if (resetClassProvider != null) {
+        resetClassProvider();
+      }
+      
       await _supabaseService.signOut();
       _currentUser = null;
       _status = AuthStatus.unauthenticated;
