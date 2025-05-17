@@ -6,6 +6,8 @@ import '../models/class_model.dart';
 import '../models/class_member_model.dart';
 import '../models/announcement_model.dart';
 import '../models/resource_model.dart';
+import '../models/assignment_model.dart';
+import '../models/submission_model.dart';
 import 'package:path/path.dart' as path;
 
 class SupabaseService {
@@ -728,6 +730,427 @@ class SupabaseService {
           .from('classes')
           .delete()
           .eq('id', classId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Create a new assignment
+  Future<AssignmentModel> createAssignment({
+    required String classId,
+    required String title,
+    required String? description,
+    required DateTime deadline,
+    File? file,
+  }) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+      
+      // Check if user is the creator of the class (only lecturers can create assignments)
+      final classData = await _client
+          .from('classes')
+          .select()
+          .eq('id', classId)
+          .eq('created_by', currentUser.id)
+          .limit(1);
+      
+      if ((classData as List).isEmpty) {
+        throw Exception('You do not have permission to create assignments in this class');
+      }
+      
+      // Get lecturer name from profiles
+      final profileData = await _client
+          .from('profiles')
+          .select('full_name')
+          .eq('id', currentUser.id)
+          .single();
+      
+      final lecturerName = profileData['full_name'] as String;
+      
+      // Generate UUID for the assignment
+      final uuid = Uuid();
+      final assignmentId = uuid.v4();
+      
+      String? fileUrl;
+      String fileType = 'None';
+      
+      // Process file upload if provided
+      if (file != null) {
+        // Process the file for upload
+        final originalFileName = path.basename(file.path);
+        final fileExtension = originalFileName.split('.').last.toLowerCase();
+        final fileName = '${assignmentId}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+        final storagePath = 'assignments/$classId/$fileName';
+        
+        print('Preparing to upload assignment file: $originalFileName');
+        print('Storage path: $storagePath');
+        
+        // Ensure the file exists and is readable
+        if (!await file.exists()) {
+          throw Exception('File does not exist: ${file.path}');
+        }
+        
+        // Read file as bytes for upload
+        final fileBytes = await file.readAsBytes();
+        
+        // Upload file to Supabase Storage
+        await _client.storage.from('educonnect').uploadBinary(
+          storagePath,
+          fileBytes,
+          fileOptions: const FileOptions(
+            cacheControl: '3600',
+            upsert: true,
+          ),
+        );
+        
+        // Get the public URL
+        fileUrl = _client.storage.from('educonnect').getPublicUrl(storagePath);
+        
+        // Determine file type from extension
+        switch(fileExtension.toLowerCase()) {
+          case 'pdf': fileType = 'PDF'; break;
+          case 'doc': case 'docx': fileType = 'Word'; break;
+          case 'xls': case 'xlsx': fileType = 'Excel'; break;
+          case 'ppt': case 'pptx': fileType = 'PowerPoint'; break;
+          case 'jpg': case 'jpeg': case 'png': case 'gif': fileType = 'Image'; break;
+          case 'txt': fileType = 'Text'; break;
+        }
+      }
+      
+      // Create assignment record
+      final assignmentData = {
+        'id': assignmentId,
+        'class_id': classId,
+        'title': title,
+        'description': description,
+        'file_url': fileUrl,
+        'assigned_by': currentUser.id,
+        'created_at': DateTime.now().toIso8601String(),
+        'deadline': deadline.toIso8601String(),
+      };
+      
+      // Insert the record into the assignments table
+      await _client.from('assignments').insert(assignmentData);
+      
+      // Return the assignment model with the lecturer name included
+      final completeData = {
+        ...assignmentData,
+        'assigned_by_name': lecturerName,
+        'file_type': fileType
+      };
+      
+      return AssignmentModel.fromJson(completeData);
+    } catch (e) {
+      print('Create assignment error: $e');
+      rethrow;
+    }
+  }
+  
+  // Get assignments for a class
+  Future<List<AssignmentModel>> getClassAssignments(String classId) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+      
+      // Check if user has access to the class
+      bool hasAccess = false;
+      
+      // Check if user is the lecturer
+      final lecturerCheck = await _client
+          .from('classes')
+          .select()
+          .eq('id', classId)
+          .eq('created_by', currentUser.id);
+      
+      if ((lecturerCheck as List).isNotEmpty) {
+        hasAccess = true;
+      } else {
+        // Check if user is a student in the class
+        final studentCheck = await _client
+            .from('class_members')
+            .select()
+            .eq('class_id', classId)
+            .eq('user_id', currentUser.id);
+        
+        if ((studentCheck as List).isNotEmpty) {
+          hasAccess = true;
+        }
+      }
+      
+      if (!hasAccess) {
+        throw Exception('You do not have access to this class');
+      }
+      
+      // Fetch assignments
+      final assignments = await _client
+          .from('assignments')
+          .select()
+          .eq('class_id', classId)
+          .order('created_at', ascending: false);
+
+      // Create a list to store the result
+      final List<AssignmentModel> result = [];
+      
+      // Process each assignment
+      for (final assignment in assignments) {
+        // Fetch the assigner's profile information
+        final assignerProfile = await _client
+            .from('profiles')
+            .select('full_name')
+            .eq('id', assignment['assigned_by'])
+            .single();
+            
+        // Create an assignment model with the profile data
+        final assignmentData = {...assignment};
+        assignmentData['assigned_by_name'] = assignerProfile['full_name'];
+        
+        // Determine file type
+        if (assignment['file_url'] != null) {
+          final fileUrl = assignment['file_url'] as String;
+          final fileExtension = fileUrl.split('.').last.toLowerCase();
+          String fileType = 'Document';
+          
+          switch(fileExtension.toLowerCase()) {
+            case 'pdf': fileType = 'PDF'; break;
+            case 'doc': case 'docx': fileType = 'Word'; break;
+            case 'xls': case 'xlsx': fileType = 'Excel'; break;
+            case 'ppt': case 'pptx': fileType = 'PowerPoint'; break;
+            case 'jpg': case 'jpeg': case 'png': case 'gif': fileType = 'Image'; break;
+            case 'txt': fileType = 'Text'; break;
+          }
+          
+          assignmentData['file_type'] = fileType;
+        } else {
+          assignmentData['file_type'] = 'None';
+        }
+        
+        result.add(AssignmentModel.fromJson(assignmentData));
+      }
+      
+      return result;
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  // Submit an assignment (for students)
+  Future<SubmissionModel> submitAssignment({
+    required String assignmentId,
+    required File file,
+  }) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+      
+      // Get assignment details to verify class membership
+      final assignmentData = await _client
+          .from('assignments')
+          .select()
+          .eq('id', assignmentId)
+          .single();
+      
+      final classId = assignmentData['class_id'] as String;
+      
+      // Check if user is a student in the class
+      final studentCheck = await _client
+          .from('class_members')
+          .select()
+          .eq('class_id', classId)
+          .eq('user_id', currentUser.id);
+      
+      if ((studentCheck as List).isEmpty) {
+        throw Exception('You are not a member of this class');
+      }
+      
+      // Check if student has already submitted
+      final existingSubmission = await _client
+          .from('submissions')
+          .select()
+          .eq('assignment_id', assignmentId)
+          .eq('student_id', currentUser.id);
+      
+      // Generate UUID for the submission
+      final uuid = Uuid();
+      final submissionId = existingSubmission.isNotEmpty 
+          ? existingSubmission[0]['id'] 
+          : uuid.v4();
+      
+      // Get student name and number from profiles
+      final profileData = await _client
+          .from('profiles')
+          .select('full_name, student_number')
+          .eq('id', currentUser.id)
+          .single();
+      
+      final studentName = profileData['full_name'] as String;
+      final studentNumber = profileData['student_number'] as String?;
+      
+      // Process the file for upload
+      final originalFileName = path.basename(file.path);
+      final fileExtension = originalFileName.split('.').last.toLowerCase();
+      final fileName = '${submissionId}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+      final storagePath = 'submissions/$assignmentId/$fileName';
+      
+      // Read file as bytes for upload
+      final fileBytes = await file.readAsBytes();
+      
+      // Upload file to Supabase Storage
+      await _client.storage.from('educonnect').uploadBinary(
+        storagePath,
+        fileBytes,
+        fileOptions: const FileOptions(
+          cacheControl: '3600',
+          upsert: true,
+        ),
+      );
+      
+      // Get the public URL
+      final fileUrl = _client.storage.from('educonnect').getPublicUrl(storagePath);
+      
+      // Determine file type
+      String fileType = 'Document';
+      switch(fileExtension.toLowerCase()) {
+        case 'pdf': fileType = 'PDF'; break;
+        case 'doc': case 'docx': fileType = 'Word'; break;
+        case 'xls': case 'xlsx': fileType = 'Excel'; break;
+        case 'ppt': case 'pptx': fileType = 'PowerPoint'; break;
+        case 'jpg': case 'jpeg': case 'png': case 'gif': fileType = 'Image'; break;
+        case 'txt': fileType = 'Text'; break;
+      }
+      
+      // Create submission record
+      final submissionData = {
+        'id': submissionId,
+        'assignment_id': assignmentId,
+        'student_id': currentUser.id,
+        'file_url': fileUrl,
+        'submitted_at': DateTime.now().toIso8601String(),
+      };
+      
+      // Insert or update the submission
+      if (existingSubmission.isEmpty) {
+        await _client.from('submissions').insert(submissionData);
+      } else {
+        await _client
+            .from('submissions')
+            .update({'file_url': fileUrl, 'submitted_at': DateTime.now().toIso8601String()})
+            .eq('id', submissionId);
+      }
+      
+      // Return the submission model
+      final completeData = {
+        ...submissionData,
+        'student_name': studentName,
+        'student_number': studentNumber,
+        'file_type': fileType
+      };
+      
+      return SubmissionModel.fromJson(completeData);
+    } catch (e) {
+      print('Submit assignment error: $e');
+      rethrow;
+    }
+  }
+  
+  // Check if a student has submitted an assignment
+  Future<bool> hasSubmittedAssignment(String assignmentId) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+      
+      // Check for existing submission
+      final submission = await _client
+          .from('submissions')
+          .select()
+          .eq('assignment_id', assignmentId)
+          .eq('student_id', currentUser.id);
+      
+      return submission.isNotEmpty;
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  // Get submissions for an assignment (for lecturers)
+  Future<List<SubmissionModel>> getAssignmentSubmissions(String assignmentId) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+      
+      // Get assignment details
+      final assignmentData = await _client
+          .from('assignments')
+          .select()
+          .eq('id', assignmentId)
+          .single();
+      
+      final classId = assignmentData['class_id'] as String;
+      final assignedBy = assignmentData['assigned_by'] as String;
+      
+      // Verify the current user is the lecturer for this class
+      if (currentUser.id != assignedBy) {
+        throw Exception('You do not have permission to view these submissions');
+      }
+      
+      // Fetch submissions
+      final submissions = await _client
+          .from('submissions')
+          .select()
+          .eq('assignment_id', assignmentId)
+          .order('submitted_at', ascending: false);
+
+      // Create a list to store the result
+      final List<SubmissionModel> result = [];
+      
+      // Process each submission
+      for (final submission in submissions) {
+        // Fetch the student's profile information
+        final studentProfile = await _client
+            .from('profiles')
+            .select('full_name, student_number')
+            .eq('id', submission['student_id'])
+            .single();
+            
+        // Create a submission model with the profile data
+        final submissionData = {...submission};
+        submissionData['student_name'] = studentProfile['full_name'];
+        submissionData['student_number'] = studentProfile['student_number'];
+        
+        // Determine file type
+        if (submission['file_url'] != null) {
+          final fileUrl = submission['file_url'] as String;
+          final fileExtension = fileUrl.split('.').last.toLowerCase();
+          String fileType = 'Document';
+          
+          switch(fileExtension.toLowerCase()) {
+            case 'pdf': fileType = 'PDF'; break;
+            case 'doc': case 'docx': fileType = 'Word'; break;
+            case 'xls': case 'xlsx': fileType = 'Excel'; break;
+            case 'ppt': case 'pptx': fileType = 'PowerPoint'; break;
+            case 'jpg': case 'jpeg': case 'png': case 'gif': fileType = 'Image'; break;
+            case 'txt': fileType = 'Text'; break;
+          }
+          
+          submissionData['file_type'] = fileType;
+        } else {
+          submissionData['file_type'] = 'None';
+        }
+        
+        result.add(SubmissionModel.fromJson(submissionData));
+      }
+      
+      return result;
     } catch (e) {
       rethrow;
     }

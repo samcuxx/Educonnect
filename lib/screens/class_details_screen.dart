@@ -14,9 +14,12 @@ import '../models/class_model.dart';
 import '../models/user_model.dart';
 import '../models/announcement_model.dart';
 import '../models/resource_model.dart';
+import '../models/assignment_model.dart';
+import '../models/submission_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
 import '../services/supabase_service.dart';
+import 'submissions_screen.dart';
 
 class ClassDetailsScreen extends StatefulWidget {
   final ClassModel classModel;
@@ -35,9 +38,12 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
   bool _isLoadingCount = false;
   bool _isLoadingAnnouncements = false;
   bool _isLoadingResources = false;
+  bool _isLoadingAssignments = false;
   int _studentsCount = 0;
   List<AnnouncementModel> _announcements = [];
   List<ResourceModel> _resources = [];
+  List<AssignmentModel> _assignments = [];
+  Map<String, bool> _assignmentSubmissions = {}; // Track if student has submitted
   DateTime? _lastAnnouncementCheck;
   bool _initialLoadDone = false;
   
@@ -45,10 +51,18 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
   Map<String, double> _downloadProgress = {};
   Map<String, String> _downloadedFiles = {};
   
+  // Add new properties for assignment downloads
+  Map<String, double> _assignmentDownloadProgress = {};
+  Map<String, String> _downloadedAssignments = {};
+  
+  // Add submission download tracking
+  Map<String, double> _submissionDownloadProgress = {};
+  Map<String, String> _downloadedSubmissions = {};
+  
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
@@ -64,9 +78,12 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
     _checkAnnouncementUpdates();
     _loadCachedAnnouncements();
     _loadResources();
+    _loadAssignments();
     
     // Load downloaded files info
     _loadDownloadedFiles();
+    _loadDownloadedAssignments();
+    _loadDownloadedSubmissions();
   }
   
   @override
@@ -84,6 +101,55 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
     } else if (_tabController.index == 1) {
       // If switching to resources tab
       _loadResources();
+    } else if (_tabController.index == 2) {
+      // If switching to assignments tab
+      _loadAssignments();
+    }
+  }
+  
+  // Load assignments for the class
+  Future<void> _loadAssignments() async {
+    if (_isLoadingAssignments) return;
+    
+    setState(() {
+      _isLoadingAssignments = true;
+    });
+    
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final supabaseService = authProvider.supabaseService;
+      
+      final assignments = await supabaseService.getClassAssignments(widget.classModel.id);
+      
+      // If user is a student, check submission status
+      if (!authProvider.isLecturer) {
+        for (var assignment in assignments) {
+          final hasSubmitted = await supabaseService.hasSubmittedAssignment(assignment.id);
+          setState(() {
+            _assignmentSubmissions[assignment.id] = hasSubmitted;
+          });
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _assignments = assignments;
+          _isLoadingAssignments = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingAssignments = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load assignments: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -968,6 +1034,364 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
     }
   }
 
+  // Add method to load downloaded assignments info
+  Future<void> _loadDownloadedAssignments() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fileMap = prefs.getString('downloaded_assignments_${widget.classModel.id}');
+      
+      if (fileMap != null) {
+        setState(() {
+          _downloadedAssignments = Map<String, String>.from(json.decode(fileMap));
+        });
+        
+        // Verify files still exist
+        for (final assignmentId in _downloadedAssignments.keys.toList()) {
+          final filePath = _downloadedAssignments[assignmentId];
+          if (filePath != null) {
+            final file = File(filePath);
+            if (!await file.exists()) {
+              setState(() {
+                _downloadedAssignments.remove(assignmentId);
+              });
+            }
+          }
+        }
+        
+        // Save changes if any files were removed
+        await _saveDownloadedAssignments();
+      }
+    } catch (e) {
+      print('Error loading downloaded assignments: $e');
+    }
+  }
+
+  // Add method to save downloaded assignments info
+  Future<void> _saveDownloadedAssignments() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'downloaded_assignments_${widget.classModel.id}',
+        json.encode(_downloadedAssignments)
+      );
+    } catch (e) {
+      print('Error saving downloaded assignments: $e');
+    }
+  }
+
+  // Add method to download an assignment file
+  Future<void> _downloadAssignmentFile(AssignmentModel assignment) async {
+    if (_assignmentDownloadProgress.containsKey(assignment.id)) {
+      return; // Already downloading
+    }
+    
+    try {
+      // Initialize progress
+      setState(() {
+        _assignmentDownloadProgress[assignment.id] = 0.0;
+      });
+      
+      // Create the downloads directory if it doesn't exist
+      final appDir = await getApplicationDocumentsDirectory();
+      final downloadsDir = Directory('${appDir.path}/EduConnect/Downloads/Assignments');
+      if (!await downloadsDir.exists()) {
+        await downloadsDir.create(recursive: true);
+      }
+      
+      // Extract the original filename from the URL
+      final uri = Uri.parse(assignment.fileUrl!);
+      String fileName = path.basename(uri.path);
+      
+      // If the filename doesn't have an extension from the URL, try to add one based on resource.fileType
+      if (!fileName.contains('.')) {
+        final extension = _getExtensionFromFileType(assignment.fileType);
+        fileName = '${assignment.id}$extension';
+      }
+      
+      // Create file path
+      final filePath = '${downloadsDir.path}/$fileName';
+      final file = File(filePath);
+      
+      // Delete the file if it already exists
+      if (await file.exists()) {
+        await file.delete();
+      }
+      
+      // Download the file with progress reporting
+      final response = await http.Client().send(http.Request('GET', uri));
+      final contentLength = response.contentLength ?? 0;
+      
+      final sink = file.openWrite();
+      int bytesReceived = 0;
+      
+      await response.stream.listen((List<int> chunk) {
+        sink.add(chunk);
+        bytesReceived += chunk.length;
+        
+        if (contentLength > 0) {
+          setState(() {
+            _assignmentDownloadProgress[assignment.id] = bytesReceived / contentLength;
+          });
+        }
+      }).asFuture();
+      
+      await sink.flush();
+      await sink.close();
+      
+      // Save the file path
+      setState(() {
+        _downloadedAssignments[assignment.id] = filePath;
+        _assignmentDownloadProgress.remove(assignment.id);
+      });
+      
+      // Update the stored list of downloaded files
+      await _saveDownloadedAssignments();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${assignment.title} downloaded successfully'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('Error downloading assignment file: $e');
+      
+      // Remove progress indicator
+      setState(() {
+        _assignmentDownloadProgress.remove(assignment.id);
+      });
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to download ${assignment.title}: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // Add method to open a downloaded assignment file
+  Future<void> _openAssignmentFile(AssignmentModel assignment) async {
+    try {
+      final filePath = _downloadedAssignments[assignment.id];
+      if (filePath == null) {
+        throw Exception('File not found');
+      }
+      
+      final file = File(filePath);
+      if (!await file.exists()) {
+        throw Exception('File no longer exists');
+      }
+      
+      final result = await OpenFilex.open(filePath);
+      if (result.type != ResultType.done) {
+        throw Exception('Could not open file: ${result.message}');
+      }
+    } catch (e) {
+      print('Error opening assignment file: $e');
+      
+      // Remove from downloaded files if it doesn't exist
+      if (e.toString().contains('no longer exists') || e.toString().contains('not found')) {
+        setState(() {
+          _downloadedAssignments.remove(assignment.id);
+        });
+        await _saveDownloadedAssignments();
+      }
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open file: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // Add method to load downloaded submissions info
+  Future<void> _loadDownloadedSubmissions() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fileMap = prefs.getString('downloaded_submissions_${widget.classModel.id}');
+      
+      if (fileMap != null) {
+        setState(() {
+          _downloadedSubmissions = Map<String, String>.from(json.decode(fileMap));
+        });
+        
+        // Verify files still exist
+        for (final submissionId in _downloadedSubmissions.keys.toList()) {
+          final filePath = _downloadedSubmissions[submissionId];
+          if (filePath != null) {
+            final file = File(filePath);
+            if (!await file.exists()) {
+              setState(() {
+                _downloadedSubmissions.remove(submissionId);
+              });
+            }
+          }
+        }
+        
+        // Save changes if any files were removed
+        await _saveDownloadedSubmissions();
+      }
+    } catch (e) {
+      print('Error loading downloaded submissions: $e');
+    }
+  }
+
+  // Add method to save downloaded submissions info
+  Future<void> _saveDownloadedSubmissions() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'downloaded_submissions_${widget.classModel.id}',
+        json.encode(_downloadedSubmissions)
+      );
+    } catch (e) {
+      print('Error saving downloaded submissions: $e');
+    }
+  }
+
+  // Add method to download a submission file
+  Future<void> _downloadSubmissionFile(SubmissionModel submission) async {
+    if (_submissionDownloadProgress.containsKey(submission.id) || submission.fileUrl == null) {
+      return; // Already downloading or no file URL
+    }
+    
+    try {
+      // Initialize progress
+      setState(() {
+        _submissionDownloadProgress[submission.id] = 0.0;
+      });
+      
+      // Create the downloads directory if it doesn't exist
+      final appDir = await getApplicationDocumentsDirectory();
+      final downloadsDir = Directory('${appDir.path}/EduConnect/Downloads/Submissions');
+      if (!await downloadsDir.exists()) {
+        await downloadsDir.create(recursive: true);
+      }
+      
+      // Extract the original filename from the URL
+      final uri = Uri.parse(submission.fileUrl!);
+      String fileName = path.basename(uri.path);
+      
+      // If the filename doesn't have an extension from the URL, try to add one based on submission.fileType
+      if (!fileName.contains('.')) {
+        final extension = _getExtensionFromFileType(submission.fileType);
+        fileName = '${submission.id}$extension';
+      }
+      
+      // Create file path
+      final filePath = '${downloadsDir.path}/$fileName';
+      final file = File(filePath);
+      
+      // Delete the file if it already exists
+      if (await file.exists()) {
+        await file.delete();
+      }
+      
+      // Download the file with progress reporting
+      final response = await http.Client().send(http.Request('GET', uri));
+      final contentLength = response.contentLength ?? 0;
+      
+      final sink = file.openWrite();
+      int bytesReceived = 0;
+      
+      await response.stream.listen((List<int> chunk) {
+        sink.add(chunk);
+        bytesReceived += chunk.length;
+        
+        if (contentLength > 0) {
+          setState(() {
+            _submissionDownloadProgress[submission.id] = bytesReceived / contentLength;
+          });
+        }
+      }).asFuture();
+      
+      await sink.flush();
+      await sink.close();
+      
+      // Save the file path
+      setState(() {
+        _downloadedSubmissions[submission.id] = filePath;
+        _submissionDownloadProgress.remove(submission.id);
+      });
+      
+      // Update the stored list of downloaded files
+      await _saveDownloadedSubmissions();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${submission.studentName}\'s submission downloaded successfully'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('Error downloading submission file: $e');
+      
+      // Remove progress indicator
+      setState(() {
+        _submissionDownloadProgress.remove(submission.id);
+      });
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to download submission: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // Add method to open a downloaded submission file
+  Future<void> _openSubmissionFile(SubmissionModel submission) async {
+    try {
+      final filePath = _downloadedSubmissions[submission.id];
+      if (filePath == null) {
+        throw Exception('File not found');
+      }
+      
+      final file = File(filePath);
+      if (!await file.exists()) {
+        throw Exception('File no longer exists');
+      }
+      
+      final result = await OpenFilex.open(filePath);
+      if (result.type != ResultType.done) {
+        throw Exception('Could not open file: ${result.message}');
+      }
+    } catch (e) {
+      print('Error opening submission file: $e');
+      
+      // Remove from downloaded files if it doesn't exist
+      if (e.toString().contains('no longer exists') || e.toString().contains('not found')) {
+        setState(() {
+          _downloadedSubmissions.remove(submission.id);
+        });
+        await _saveDownloadedSubmissions();
+      }
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open file: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -999,6 +1423,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
           tabs: const [
             Tab(text: 'Announcements'),
             Tab(text: 'Resources'),
+            Tab(text: 'Assignments'),
           ],
         ),
         actions: [
@@ -1038,17 +1463,29 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
           ),
         ],
       ),
-      // Add floating action button for lecturers to create announcements or upload resources
+      // Add floating action button for lecturers to create announcements, upload resources, or create assignments
       floatingActionButton: isLecturer ? FloatingActionButton(
         onPressed: () {
           if (_tabController.index == 0) {
             _createAnnouncement();
-          } else {
+          } else if (_tabController.index == 1) {
             _uploadResource();
+          } else {
+            _createAssignment();
           }
         },
-        tooltip: _tabController.index == 0 ? 'Add Announcement' : 'Upload Resource',
-        child: Icon(_tabController.index == 0 ? Icons.announcement : Icons.upload_file),
+        tooltip: _tabController.index == 0 
+          ? 'Add Announcement' 
+          : _tabController.index == 1 
+            ? 'Upload Resource' 
+            : 'Create Assignment',
+        child: Icon(
+          _tabController.index == 0 
+            ? Icons.announcement 
+            : _tabController.index == 1 
+              ? Icons.upload_file 
+              : Icons.assignment_add
+        ),
       ) : null,
       body: TabBarView(
         controller: _tabController,
@@ -1058,6 +1495,9 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
           
           // Resources Tab
           _buildResourcesTab(context, isLecturer),
+          
+          // Assignments Tab
+          _buildAssignmentsTab(context, isLecturer),
         ],
       ),
     );
@@ -1503,5 +1943,981 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
       case 'Text': return Colors.grey;
       default: return Colors.grey;
     }
+  }
+
+  // Create a new assignment (for lecturers)
+  Future<void> _createAssignment() async {
+    final formKey = GlobalKey<FormState>();
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final deadlineDate = ValueNotifier<DateTime>(
+      DateTime.now().add(const Duration(days: 7)),
+    );
+    File? selectedFile;
+    String? fileName;
+    bool isUploading = false;
+    
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 16,
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Create Assignment',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Title',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a title';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (Optional)',
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                    maxLines: 5,
+                  ),
+                  const SizedBox(height: 16),
+                  // Deadline picker
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Submission Deadline',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ValueListenableBuilder<DateTime>(
+                          valueListenable: deadlineDate,
+                          builder: (context, date, _) {
+                            return Row(
+                              children: [
+                                Text(
+                                  DateFormat('MMM d, yyyy • h:mm a').format(date),
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                                const Spacer(),
+                                TextButton.icon(
+                                  icon: const Icon(Icons.calendar_month),
+                                  label: const Text('Change'),
+                                  onPressed: () async {
+                                    final newDate = await showDatePicker(
+                                      context: context,
+                                      initialDate: date,
+                                      firstDate: DateTime.now(),
+                                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                                    );
+                                    
+                                    if (newDate != null) {
+                                      final newTime = await showTimePicker(
+                                        context: context,
+                                        initialTime: TimeOfDay.fromDateTime(date),
+                                      );
+                                      
+                                      if (newTime != null) {
+                                        setModalState(() {
+                                          deadlineDate.value = DateTime(
+                                            newDate.year,
+                                            newDate.month,
+                                            newDate.day,
+                                            newTime.hour,
+                                            newTime.minute,
+                                          );
+                                        });
+                                      }
+                                    }
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // File picker (optional)
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Attachment (Optional)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.attach_file),
+                          label: const Text('Select File'),
+                          onPressed: () async {
+                            try {
+                              // Use file_selector to pick files
+                              final XTypeGroup allFiles = XTypeGroup(
+                                label: 'All Files',
+                                extensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'jpg', 'jpeg', 'png'],
+                              );
+                              
+                              final XFile? pickedFile = await openFile(
+                                acceptedTypeGroups: [allFiles],
+                              );
+                              
+                              if (pickedFile != null) {
+                                final path = pickedFile.path;
+                                
+                                // Create the file object
+                                final file = File(path);
+                                
+                                // Check if file exists and is readable
+                                if (await file.exists()) {
+                                  setModalState(() {
+                                    selectedFile = file;
+                                    fileName = pickedFile.name;
+                                  });
+                                } else {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('File not found or cannot be accessed'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                            } catch (e) {
+                              print("Error picking file: $e");
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error selecting file: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (fileName != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.description, color: Colors.blue),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        fileName!,
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (selectedFile != null) FutureBuilder<int>(
+                                        future: selectedFile!.length(),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.hasData) {
+                                            final kb = snapshot.data! / 1024;
+                                            return Text(
+                                              '${kb.toStringAsFixed(1)} KB',
+                                              style: const TextStyle(fontSize: 12),
+                                            );
+                                          }
+                                          return const SizedBox();
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () {
+                                    setModalState(() {
+                                      selectedFile = null;
+                                      fileName = null;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: isUploading ? null : () async {
+                      if (formKey.currentState!.validate()) {
+                        try {
+                          // Check if file still exists before proceeding
+                          if (selectedFile != null && !await selectedFile!.exists()) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('File no longer exists or cannot be accessed'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+                          
+                          setModalState(() {
+                            isUploading = true;
+                          });
+                          
+                          Navigator.pop(context, {
+                            'title': titleController.text.trim(),
+                            'description': descriptionController.text.trim(),
+                            'deadline': deadlineDate.value,
+                            'file': selectedFile,
+                          });
+                        } catch (e) {
+                          print("Error preparing assignment: $e");
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error preparing assignment: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          setModalState(() {
+                            isUploading = false;
+                          });
+                        }
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: isUploading
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text('Preparing...'),
+                            ],
+                          )
+                        : const Text('Create Assignment'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ).then((data) async {
+      if (data != null && data is Map<String, dynamic>) {
+        try {
+          setState(() {
+            _isLoadingAssignments = true;
+          });
+          
+          // Show creating indicator
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Text('Creating assignment...'),
+                ],
+              ),
+              duration: Duration(seconds: 30),
+            ),
+          );
+          
+          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+          final supabaseService = authProvider.supabaseService;
+          
+          final assignment = await supabaseService.createAssignment(
+            classId: widget.classModel.id,
+            title: data['title'],
+            description: data['description']?.isEmpty ?? true ? null : data['description'],
+            deadline: data['deadline'],
+            file: data['file'],
+          );
+          
+          setState(() {
+            _assignments.insert(0, assignment);
+            _isLoadingAssignments = false;
+          });
+          
+          // Clear previous snackbar
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Assignment created successfully'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          setState(() {
+            _isLoadingAssignments = false;
+          });
+          
+          // Clear previous snackbar
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to create assignment: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    });
+  }
+  
+  // Submit an assignment (for students)
+  Future<void> _submitAssignment(AssignmentModel assignment) async {
+    final formKey = GlobalKey<FormState>();
+    File? selectedFile;
+    String? fileName;
+    bool isUploading = false;
+    
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 16,
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Submit: ${assignment.title}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // File picker
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Submission File',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.attach_file),
+                          label: const Text('Select File'),
+                          onPressed: () async {
+                            try {
+                              // Use file_selector to pick files
+                              final XTypeGroup allFiles = XTypeGroup(
+                                label: 'All Files',
+                                extensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'jpg', 'jpeg', 'png'],
+                              );
+                              
+                              final XFile? pickedFile = await openFile(
+                                acceptedTypeGroups: [allFiles],
+                              );
+                              
+                              if (pickedFile != null) {
+                                final path = pickedFile.path;
+                                
+                                // Create the file object
+                                final file = File(path);
+                                
+                                // Check if file exists and is readable
+                                if (await file.exists()) {
+                                  setModalState(() {
+                                    selectedFile = file;
+                                    fileName = pickedFile.name;
+                                  });
+                                } else {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('File not found or cannot be accessed'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                            } catch (e) {
+                              print("Error picking file: $e");
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error selecting file: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (fileName != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.description, color: Colors.blue),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        fileName!,
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (selectedFile != null) FutureBuilder<int>(
+                                        future: selectedFile!.length(),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.hasData) {
+                                            final kb = snapshot.data! / 1024;
+                                            return Text(
+                                              '${kb.toStringAsFixed(1)} KB',
+                                              style: const TextStyle(fontSize: 12),
+                                            );
+                                          }
+                                          return const SizedBox();
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () {
+                                    setModalState(() {
+                                      selectedFile = null;
+                                      fileName = null;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: isUploading ? null : () async {
+                      if (selectedFile == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please select a file to submit'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                      
+                      try {
+                        // Check if file still exists before proceeding
+                        if (!await selectedFile!.exists()) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('File no longer exists or cannot be accessed'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        
+                        setModalState(() {
+                          isUploading = true;
+                        });
+                        
+                        Navigator.pop(context, {
+                          'file': selectedFile,
+                        });
+                      } catch (e) {
+                        print("Error checking file: $e");
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error preparing file: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        setModalState(() {
+                          isUploading = false;
+                        });
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: isUploading
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text('Submitting...'),
+                            ],
+                          )
+                        : const Text('Submit Assignment'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ).then((data) async {
+      if (data != null && data is Map<String, dynamic>) {
+        try {
+          // Show uploading indicator
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Text('Submitting assignment...'),
+                ],
+              ),
+              duration: Duration(seconds: 30),
+            ),
+          );
+          
+          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+          final supabaseService = authProvider.supabaseService;
+          
+          await supabaseService.submitAssignment(
+            assignmentId: assignment.id,
+            file: data['file'],
+          );
+          
+          // Update submission status
+          setState(() {
+            _assignmentSubmissions[assignment.id] = true;
+          });
+          
+          // Clear previous snackbar
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Assignment submitted successfully'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          // Clear previous snackbar
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to submit assignment: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    });
+  }
+  
+  // View assignment submissions (for lecturers)
+  void _viewSubmissions(AssignmentModel assignment) {
+    // Navigate to the submissions screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SubmissionsScreen(assignment: assignment),
+      ),
+    );
+  }
+  
+  IconData _getFileIconData(String fileType) {
+    switch (fileType) {
+      case 'PDF':
+        return Icons.picture_as_pdf;
+      case 'Word':
+        return Icons.description;
+      case 'Excel':
+        return Icons.table_chart;
+      case 'PowerPoint':
+        return Icons.slideshow;
+      case 'Image':
+        return Icons.image;
+      case 'Text':
+        return Icons.article;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+  
+  // Build the assignments tab view
+  Widget _buildAssignmentsTab(BuildContext context, bool isLecturer) {
+    return RefreshIndicator(
+      onRefresh: _loadAssignments,
+      displacement: 40.0,
+      color: Theme.of(context).primaryColor,
+      backgroundColor: Colors.white,
+      strokeWidth: 3.0,
+      child: _isLoadingAssignments && _assignments.isEmpty
+        ? const Center(child: CircularProgressIndicator())
+        : _assignments.isEmpty
+          ? _buildEmptyState(
+              context,
+              icon: Icons.assignment_outlined,
+              title: 'No assignments yet',
+              message: isLecturer
+                ? 'Tap + to create an assignment for your students'
+                : 'Your lecturer has not posted any assignments yet',
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _assignments.length,
+              itemBuilder: (context, index) {
+                final assignment = _assignments[index];
+                final bool hasSubmitted = _assignmentSubmissions[assignment.id] ?? false;
+                final bool isOverdue = DateTime.now().isAfter(assignment.deadline);
+                
+                return Card(
+                  elevation: 2,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: isOverdue && !isLecturer && !hasSubmitted
+                      ? BorderSide(color: Colors.red, width: 1.5)
+                      : BorderSide.none,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: (isOverdue ? Colors.red : Theme.of(context).primaryColor).withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.assignment,
+                                color: isOverdue ? Colors.red : Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    assignment.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_today,
+                                        size: 14,
+                                        color: isOverdue ? Colors.red : Colors.grey[600],
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Due: ${DateFormat('MMM d, yyyy • h:mm a').format(assignment.deadline)}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isOverdue ? Colors.red : Colors.grey[600],
+                                          fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        if (assignment.description != null && assignment.description!.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              assignment.description!,
+                              style: const TextStyle(fontSize: 15),
+                            ),
+                          ),
+                        ],
+                        
+                        if (assignment.fileUrl != null) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: _getFileColor(assignment.fileType).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: _getFileIcon(assignment.fileType),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    "Assignment attachment",
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                
+                                // Show different actions based on file status
+                                if (_downloadedAssignments.containsKey(assignment.id))
+                                  TextButton.icon(
+                                    icon: const Icon(Icons.open_in_new, size: 16),
+                                    label: const Text('Open'),
+                                    onPressed: () => _openAssignmentFile(assignment),
+                                  )
+                                else if (_assignmentDownloadProgress.containsKey(assignment.id))
+                                  TextButton.icon(
+                                    icon: const SizedBox(
+                                      width: 16, 
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                    label: Text(
+                                      '${(_assignmentDownloadProgress[assignment.id]! * 100).toStringAsFixed(0)}%',
+                                    ),
+                                    onPressed: null,
+                                  )
+                                else
+                                  TextButton.icon(
+                                    icon: const Icon(Icons.download, size: 16),
+                                    label: const Text('Download'),
+                                    onPressed: () => _downloadAssignmentFile(assignment),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 12,
+                                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                                  child: Text(
+                                    assignment.assignedByName.substring(0, 1),
+                                    style: TextStyle(
+                                      color: Theme.of(context).primaryColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Posted by ${assignment.assignedByName}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (!isLecturer) ...[
+                              if (hasSubmitted)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.green),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Submitted',
+                                        style: TextStyle(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.upload_file, size: 16),
+                                  label: Text(isOverdue ? 'Submit Late' : 'Submit'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isOverdue ? Colors.red : null,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                  onPressed: () => _submitAssignment(assignment),
+                                ),
+                            ] else
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.people, size: 16),
+                                label: const Text('Submissions'),
+                                onPressed: () => _viewSubmissions(assignment),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
   }
 } 
