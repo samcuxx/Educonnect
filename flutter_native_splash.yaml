@@ -1,0 +1,35 @@
+flutter_native_splash:
+  # Splash screen background color in light mode
+  color: "#F7F9FC"  # Using lightBackground from AppTheme
+  
+  # Background color in dark mode
+  color_dark: "#121212"  # Using darkBackground from AppTheme
+
+  # The image to display in the center of the splash screen
+  image: assets/icon/icon.png
+
+  # Dark mode version of the image (using the same icon since it should work well on both)
+  image_dark: assets/icon/icon.png
+
+  # Android 12 handles splash screens differently
+  android_12:
+    # Light mode settings for Android 12
+    image: assets/icon/icon.png
+    color: "#F7F9FC"
+    icon_background_color: "#3366FF"  # Using lightPrimaryStart from AppTheme
+
+    # Dark mode settings for Android 12
+    image_dark: assets/icon/icon.png
+    color_dark: "#121212"
+    icon_background_color_dark: "#3700B3"  # Using darkPrimaryStart from AppTheme
+
+  # Disable fullscreen mode
+  fullscreen: false
+
+  # Don't hide the status bar
+  android_gravity: center
+  ios_content_mode: center
+
+  # Web splash screen settings
+  web: true
+  web_image_mode: center 
