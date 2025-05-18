@@ -10,6 +10,7 @@ class CustomTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
+  final bool enabled;
 
   const CustomTextField({
     Key? key,
@@ -21,6 +22,7 @@ class CustomTextField extends StatelessWidget {
     this.validator,
     this.prefixIcon,
     this.suffixIcon,
+    this.enabled = true,
   }) : super(key: key);
 
   @override
@@ -37,8 +39,12 @@ class CustomTextField extends StatelessWidget {
         obscureText: obscureText,
         keyboardType: keyboardType,
         validator: validator,
+        enabled: enabled,
         style: TextStyle(
           fontWeight: FontWeight.w400,
+          color: enabled 
+              ? (isDark ? Colors.white : Colors.black)
+              : (isDark ? Colors.white60 : Colors.black45),
         ),
         decoration: InputDecoration(
           labelText: labelText,
@@ -51,9 +57,9 @@ class CustomTextField extends StatelessWidget {
               : null,
           suffixIcon: suffixIcon,
           filled: true,
-          fillColor: isDark 
-              ? AppTheme.darkSurface.withOpacity(0.7) 
-              : Colors.white.withOpacity(0.9),
+          fillColor: enabled
+              ? (isDark ? Colors.white.withOpacity(0.1) : Colors.white)
+              : (isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100]),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28.0),
             borderSide: BorderSide(
@@ -112,6 +118,12 @@ class CustomTextField extends StatelessWidget {
                 ? AppTheme.darkTextSecondary.withOpacity(0.5)
                 : AppTheme.lightTextSecondary.withOpacity(0.5),
             fontWeight: FontWeight.w300,
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(28.0),
+            borderSide: BorderSide(
+              color: isDark ? Colors.white12 : Colors.black12,
+            ),
           ),
         ),
       ),

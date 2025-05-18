@@ -176,6 +176,74 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Update student profile
+  Future<void> updateStudentProfile({
+    required String fullName,
+    required String studentNumber,
+    required String institution,
+    required String level,
+  }) async {
+    _status = AuthStatus.loading;
+    _errorMessage = null;
+    notifyListeners();
+    
+    try {
+      if (_currentUser == null || !isStudent) {
+        throw Exception('No student profile found to update');
+      }
+      
+      final updatedUser = await _supabaseService.updateStudentProfile(
+        userId: _currentUser!.id,
+        fullName: fullName,
+        studentNumber: studentNumber,
+        institution: institution,
+        level: level,
+      );
+      
+      _currentUser = updatedUser;
+      _status = AuthStatus.authenticated;
+    } catch (e) {
+      _status = AuthStatus.error;
+      _errorMessage = _formatErrorMessage(e.toString());
+      rethrow;
+    } finally {
+      notifyListeners();
+    }
+  }
+  
+  // Update lecturer profile
+  Future<void> updateLecturerProfile({
+    required String fullName,
+    required String staffId,
+    required String department,
+  }) async {
+    _status = AuthStatus.loading;
+    _errorMessage = null;
+    notifyListeners();
+    
+    try {
+      if (_currentUser == null || !isLecturer) {
+        throw Exception('No lecturer profile found to update');
+      }
+      
+      final updatedUser = await _supabaseService.updateLecturerProfile(
+        userId: _currentUser!.id,
+        fullName: fullName,
+        staffId: staffId,
+        department: department,
+      );
+      
+      _currentUser = updatedUser;
+      _status = AuthStatus.authenticated;
+    } catch (e) {
+      _status = AuthStatus.error;
+      _errorMessage = _formatErrorMessage(e.toString());
+      rethrow;
+    } finally {
+      notifyListeners();
+    }
+  }
+
   // Format error messages to be more user-friendly
   String _formatErrorMessage(String errorMsg) {
     // Convert Supabase error messages to more user-friendly ones

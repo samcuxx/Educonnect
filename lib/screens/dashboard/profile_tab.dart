@@ -7,6 +7,7 @@ import '../../utils/app_theme.dart';
 import '../../widgets/gradient_container.dart';
 import '../../widgets/gradient_button.dart';
 import '../../models/user_model.dart';
+import '../profile/edit_profile_screen.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({Key? key}) : super(key: key);
@@ -325,8 +326,18 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
           icon: Icons.edit,
           title: 'Edit Profile',
           subtitle: 'Update your personal information',
-          onTap: () {
-            // Handle edit profile
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const EditProfileScreen(),
+              ),
+            );
+            
+            // Refresh the UI if profile was updated
+            if (result == true) {
+              setState(() {});
+            }
           },
           isDark: isDark,
         ),

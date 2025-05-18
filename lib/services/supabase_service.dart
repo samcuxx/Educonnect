@@ -1155,4 +1155,56 @@ class SupabaseService {
       rethrow;
     }
   }
+
+  // Update student profile
+  Future<app_models.Student> updateStudentProfile({
+    required String userId,
+    required String fullName,
+    required String studentNumber,
+    required String institution,
+    required String level,
+  }) async {
+    try {
+      final updatedData = await _client
+          .from('profiles')
+          .update({
+            'full_name': fullName,
+            'student_number': studentNumber,
+            'institution': institution,
+            'level': level,
+          })
+          .eq('id', userId)
+          .select()
+          .single();
+      
+      return app_models.Student.fromJson(updatedData);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Update lecturer profile
+  Future<app_models.Lecturer> updateLecturerProfile({
+    required String userId,
+    required String fullName,
+    required String staffId,
+    required String department,
+  }) async {
+    try {
+      final updatedData = await _client
+          .from('profiles')
+          .update({
+            'full_name': fullName,
+            'staff_id': staffId,
+            'department': department,
+          })
+          .eq('id', userId)
+          .select()
+          .single();
+      
+      return app_models.Lecturer.fromJson(updatedData);
+    } catch (e) {
+      rethrow;
+    }
+  }
 } 
