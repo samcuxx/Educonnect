@@ -204,9 +204,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     required bool isDark,
   }) {
     final isSelected = _currentIndex == index;
-    final Color primaryColor = isSelected
-        ? isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart
-        : isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+    final isLecturer = Provider.of<AuthProvider>(context).isLecturer;
+    
+    // Use secondary colors for lecturers, primary colors for students
+    final selectedGradient = isLecturer
+        ? AppTheme.secondaryGradient(isDark)
+        : AppTheme.primaryGradient(isDark);
+    
+    final selectedColor = isLecturer
+        ? (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart)
+        : (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart);
+    
+    final unselectedColor = isDark 
+        ? AppTheme.darkTextSecondary 
+        : AppTheme.lightTextSecondary;
     
     return InkWell(
       onTap: () => _onTabTapped(index),
@@ -215,10 +226,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: BoxDecoration(
+          gradient: isSelected ? selectedGradient : null,
           color: isSelected
-              ? (isDark
-                  ? AppTheme.darkPrimaryStart.withOpacity(0.15)
-                  : AppTheme.lightPrimaryStart.withOpacity(0.10))
+              ? null
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
@@ -227,8 +237,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           children: [
             Icon(
               icon,
-              color: primaryColor,
-              size: 22,
+              color: isSelected ? Colors.white : unselectedColor,
+              size: 24,
             ),
             const SizedBox(height: 4),
             Text(
@@ -236,7 +246,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: primaryColor,
+                color: isSelected ? Colors.white : unselectedColor,
               ),
             ),
           ],
