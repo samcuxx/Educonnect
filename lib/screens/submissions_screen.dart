@@ -252,14 +252,14 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               widget.assignment.title,
               style: TextStyle(
-                color: isDark ? Colors.white : Colors.black87,
+                color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -268,38 +268,42 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
               'Due ${DateFormat('MMM d, yyyy • h:mm a').format(widget.assignment.deadline)}',
               style: TextStyle(
                 fontSize: 12,
-                color: isDark ? Colors.white60 : Colors.black45,
+                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
               ),
             ),
           ],
         ),
       ),
       body: _isLoading
-        ? const Center(child: CircularProgressIndicator())
+        ? Center(child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart
+            ),
+          ))
           : _submissions.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                    Icons.assignment_outlined,
-                    size: 64,
-                    color: isDark ? Colors.white38 : Colors.black26,
+                        Icons.assignment_outlined,
+                        size: 64,
+                        color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                       ),
                       const SizedBox(height: 16),
-                  Text(
+                      Text(
                         'No submissions yet',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white70 : Colors.black54,
+                          color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                    'Students have not submitted their work',
+                        'Students have not submitted their work',
                         style: TextStyle(
-                      color: isDark ? Colors.white60 : Colors.black45,
+                          color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                         ),
                       ),
                     ],
@@ -317,18 +321,18 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: isDark ? [
-                            AppTheme.darkPrimaryStart.withOpacity(0.1),
-                            AppTheme.darkPrimaryEnd.withOpacity(0.05),
+                            AppTheme.darkSecondaryStart.withOpacity(0.1),
+                            AppTheme.darkSecondaryEnd.withOpacity(0.05),
                           ] : [
-                            AppTheme.lightPrimaryStart.withOpacity(0.1),
-                            AppTheme.lightPrimaryEnd.withOpacity(0.05),
+                            AppTheme.lightSecondaryStart.withOpacity(0.1),
+                            AppTheme.lightSecondaryEnd.withOpacity(0.05),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isDark 
-                            ? AppTheme.darkPrimaryStart.withOpacity(0.2)
-                            : AppTheme.lightPrimaryStart.withOpacity(0.2),
+                            ? AppTheme.darkSecondaryStart.withOpacity(0.2)
+                            : AppTheme.lightSecondaryStart.withOpacity(0.2),
                         ),
                       ),
                       child: Column(
@@ -338,34 +342,34 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                             children: [
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                                children: [
                                   Text(
                                     'Total Submissions',
                                     style: TextStyle(
                                       fontSize: 14,
-                                      color: isDark ? Colors.white60 : Colors.black45,
+                                      color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     _submissions.length.toString(),
-                                style: TextStyle(
+                                    style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : Colors.black87,
-                                ),
-                              ),
+                                      color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+                                    ),
+                                  ),
                                 ],
                               ),
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                                  color: (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart).withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
                                   Icons.assignment_turned_in,
-                                  color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                  color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
                                   size: 24,
                                 ),
                               ),
@@ -378,9 +382,11 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                               value: widget.assignment.totalStudents > 0
                                 ? _submissions.length / widget.assignment.totalStudents
                                 : 0,
-                              backgroundColor: isDark ? Colors.white12 : Colors.black12,
+                              backgroundColor: isDark 
+                                ? AppTheme.darkTextSecondary.withOpacity(0.1)
+                                : AppTheme.lightTextSecondary.withOpacity(0.1),
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
                               ),
                               minHeight: 8,
                             ),
@@ -390,7 +396,7 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                             '${(widget.assignment.totalStudents > 0 ? (_submissions.length / widget.assignment.totalStudents * 100) : 0).toStringAsFixed(1)}% of students submitted',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark ? Colors.white60 : Colors.black45,
+                              color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                             ),
                           ),
                         ],
@@ -419,10 +425,22 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.02),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: isDark ? [
+                                      AppTheme.darkSecondaryStart.withOpacity(0.1),
+                                      AppTheme.darkSecondaryEnd.withOpacity(0.05),
+                                    ] : [
+                                      AppTheme.lightSecondaryStart.withOpacity(0.1),
+                                      AppTheme.lightSecondaryEnd.withOpacity(0.05),
+                                    ],
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: isDark ? Colors.white12 : Colors.black12,
+                                    color: isDark 
+                                      ? AppTheme.darkSecondaryStart.withOpacity(0.1)
+                                      : AppTheme.lightSecondaryStart.withOpacity(0.1),
                                   ),
                                 ),
                                 child: Column(
@@ -432,11 +450,11 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                                       children: [
                                         CircleAvatar(
                                           radius: 20,
-                                          backgroundColor: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                                          backgroundColor: (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart).withOpacity(0.1),
                                           child: Text(
                                             submission.studentName[0].toUpperCase(),
                                             style: TextStyle(
-                                              color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                              color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -450,14 +468,14 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                                                 submission.studentName,
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
-                                                  color: isDark ? Colors.white : Colors.black87,
+                                                  color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
                                                 ),
                                               ),
                                               Text(
                                                 'Submitted ${DateFormat('MMM d, yyyy • h:mm a').format(submission.submittedAt)}',
                                                 style: TextStyle(
                                                   fontSize: 12,
-                                                  color: isDark ? Colors.white60 : Colors.black45,
+                                                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                                                 ),
                                               ),
                                             ],
@@ -466,10 +484,25 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: submission.submittedAt.isBefore(widget.assignment.deadline)
-                                              ? Colors.green.withOpacity(0.1)
-                                              : Colors.orange.withOpacity(0.1),
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: submission.submittedAt.isBefore(widget.assignment.deadline)
+                                                ? [
+                                                    Colors.green.withOpacity(0.2),
+                                                    Colors.green.withOpacity(0.1),
+                                                  ]
+                                                : [
+                                                    Colors.orange.withOpacity(0.2),
+                                                    Colors.orange.withOpacity(0.1),
+                                                  ],
+                                            ),
                                             borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: submission.submittedAt.isBefore(widget.assignment.deadline)
+                                                ? Colors.green.withOpacity(0.2)
+                                                : Colors.orange.withOpacity(0.2),
+                                            ),
                                           ),
                                           child: Text(
                                             submission.submittedAt.isBefore(widget.assignment.deadline)
@@ -488,23 +521,50 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                                     ),
                                     if (submission.fileUrl != null) ...[
                                       const SizedBox(height: 12),
+                                                                      Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: isDark ? [
+                                        AppTheme.darkSecondaryStart.withOpacity(0.1),
+                                        AppTheme.darkSecondaryEnd.withOpacity(0.05),
+                                      ] : [
+                                        AppTheme.lightSecondaryStart.withOpacity(0.1),
+                                        AppTheme.lightSecondaryEnd.withOpacity(0.05),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isDark 
+                                        ? AppTheme.darkSecondaryStart.withOpacity(0.1)
+                                        : AppTheme.lightSecondaryStart.withOpacity(0.1),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
                                       Container(
-                                        padding: const EdgeInsets.all(12),
+                                        padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.02),
-                                          borderRadius: BorderRadius.circular(8),
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: isDark ? [
+                                              AppTheme.darkSecondaryStart.withOpacity(0.2),
+                                              AppTheme.darkSecondaryEnd.withOpacity(0.1),
+                                            ] : [
+                                              AppTheme.lightSecondaryStart.withOpacity(0.2),
+                                              AppTheme.lightSecondaryEnd.withOpacity(0.1),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(6),
                                         ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color: _getFileColor(submission.fileType).withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
                                               child: Icon(
                                                 _getFileIconData(submission.fileType),
-                                                color: _getFileColor(submission.fileType),
+                                                color: isDark 
+                                                  ? AppTheme.darkSecondaryStart 
+                                                  : AppTheme.lightSecondaryStart,
                                                 size: 16,
                                               ),
                                             ),
@@ -517,14 +577,14 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                                                     'Submission File',
                                                     style: TextStyle(
                                                       fontWeight: FontWeight.w500,
-                                                      color: isDark ? Colors.white : Colors.black87,
+                                                      color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
                                                     ),
                                                   ),
                                                   Text(
                                                     submission.fileType,
                                                     style: TextStyle(
                                                       fontSize: 12,
-                                                      color: isDark ? Colors.white60 : Colors.black45,
+                                                      color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                                                     ),
                                                   ),
                                                 ],
@@ -536,7 +596,7 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                                                 label: const Text('Open'),
                                                 onPressed: () => _openSubmissionFile(submission),
                                                 style: TextButton.styleFrom(
-                                                  foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                                  foregroundColor: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
                                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                                 ),
                                               )
@@ -547,10 +607,10 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                                                   SizedBox(
                                                     width: 16,
                                                     height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2,
                                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                                        isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart
+                                                        isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart
                                                       ),
                                                       value: _submissionDownloadProgress[submission.id],
                                                     ),
@@ -560,8 +620,8 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                                                     '${(_submissionDownloadProgress[submission.id]! * 100).toStringAsFixed(0)}%',
                                                     style: TextStyle(
                                                       fontSize: 12,
-                                                      color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
-                                    ),
+                                                      color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
+                                                    ),
                                                   ),
                                                 ],
                                               )
@@ -571,7 +631,7 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                                                 label: const Text('Download'),
                                                 onPressed: () => _downloadSubmissionFile(submission),
                                                 style: TextButton.styleFrom(
-                                                  foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                                  foregroundColor: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
                                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                                 ),
                                               ),

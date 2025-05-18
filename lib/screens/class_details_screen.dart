@@ -1402,31 +1402,31 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+        backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
         title: ShaderMask(
           shaderCallback: (bounds) => LinearGradient(
             colors: isDark ? [
-              AppTheme.darkPrimaryStart,
-              AppTheme.darkPrimaryEnd,
+              AppTheme.darkSecondaryStart,
+              AppTheme.darkSecondaryEnd,
             ] : [
-              AppTheme.lightPrimaryStart,
-              AppTheme.lightPrimaryEnd,
+              AppTheme.lightSecondaryStart,
+              AppTheme.lightSecondaryEnd,
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ).createShader(bounds),
           child: Text(
             widget.classModel.name,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,
-              color: Colors.white,
+              color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
             ),
           ),
         ),
         centerTitle: true,
         iconTheme: IconThemeData(
-          color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+          color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
         ),
         actions: [
           // Add action button based on user role
@@ -1497,12 +1497,12 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
           preferredSize: const Size.fromHeight(72),
           child: Container(
             decoration: BoxDecoration(
-              color: isDark ? AppTheme.darkSurface : Colors.white,
+              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
               border: Border(
                 bottom: BorderSide(
                   color: isDark
-                    ? Colors.white.withOpacity(0.1)
-                    : Colors.black.withOpacity(0.1),
+                    ? AppTheme.darkTextSecondary.withOpacity(0.1)
+                    : AppTheme.lightTextSecondary.withOpacity(0.1),
                 ),
               ),
             ),
@@ -1516,19 +1516,21 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                 fontWeight: FontWeight.normal,
                 fontSize: 12,
               ),
-              labelColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
-              unselectedLabelColor: isDark ? Colors.white.withOpacity(0.5) : Colors.black.withOpacity(0.5),
-              indicatorColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+              labelColor: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
+              unselectedLabelColor: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+              indicatorColor: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
               indicatorWeight: 3,
               indicatorSize: TabBarIndicatorSize.label,
-              tabs: [
+                              tabs: [
                 Tab(
                   height: 56,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.announcement_outlined,
+                        _tabController.index == 0 
+                          ? Icons.announcement 
+                          : Icons.announcement_outlined,
                         size: 24,
                       ),
                       const SizedBox(height: 4),
@@ -1542,7 +1544,9 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.folder_outlined,
+                        _tabController.index == 1 
+                          ? Icons.folder 
+                          : Icons.folder_outlined,
                         size: 24,
                       ),
                       const SizedBox(height: 4),
@@ -1556,7 +1560,9 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.assignment_outlined,
+                        _tabController.index == 2 
+                          ? Icons.assignment 
+                          : Icons.assignment_outlined,
                         size: 24,
                       ),
                       const SizedBox(height: 4),
@@ -1570,27 +1576,53 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
         ),
       ),
       // Add floating action button for lecturers to create announcements, upload resources, or create assignments
-      floatingActionButton: isLecturer ? FloatingActionButton(
-        onPressed: () {
-          if (_tabController.index == 0) {
-            _createAnnouncement();
-          } else if (_tabController.index == 1) {
-            _uploadResource();
-          } else {
-            _createAssignment();
-          }
-        },
-        tooltip: _tabController.index == 0 
-          ? 'Add Announcement' 
-          : _tabController.index == 1 
-            ? 'Upload Resource' 
-            : 'Create Assignment',
-        child: Icon(
-          _tabController.index == 0 
-            ? Icons.announcement 
+      floatingActionButton: isLecturer ? Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isDark ? [
+              AppTheme.darkSecondaryStart,
+              AppTheme.darkSecondaryEnd,
+            ] : [
+              AppTheme.lightSecondaryStart,
+              AppTheme.lightSecondaryEnd,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart).withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: () {
+            if (_tabController.index == 0) {
+              _createAnnouncement();
+            } else if (_tabController.index == 1) {
+              _uploadResource();
+            } else {
+              _createAssignment();
+            }
+          },
+          tooltip: _tabController.index == 0 
+            ? 'Add Announcement' 
             : _tabController.index == 1 
-              ? Icons.upload_file 
-              : Icons.assignment_add
+              ? 'Upload Resource' 
+              : 'Create Assignment',
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Icon(
+            _tabController.index == 0 
+              ? Icons.post_add
+              : _tabController.index == 1 
+                ? Icons.upload_rounded
+                : Icons.add_task_rounded,
+            color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+          ),
         ),
       ) : null,
       body: TabBarView(
@@ -1615,11 +1647,15 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
     return RefreshIndicator(
       onRefresh: _loadAnnouncements,
       displacement: 40.0,
-      color: Theme.of(context).primaryColor,
-      backgroundColor: Colors.white,
+      color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+      backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
       strokeWidth: 3.0,
       child: _isLoadingAnnouncements && _announcements.isEmpty
-        ? const Center(child: CircularProgressIndicator())
+        ? Center(child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart
+            ),
+          ))
         : _announcements.isEmpty
           ? _buildEmptyState(
               context,
@@ -1648,18 +1684,18 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: isDark ? [
-                              AppTheme.darkPrimaryStart.withOpacity(0.1),
-                              AppTheme.darkPrimaryEnd.withOpacity(0.05),
+                              AppTheme.darkSecondaryStart.withOpacity(0.1),
+                              AppTheme.darkSecondaryEnd.withOpacity(0.05),
                             ] : [
-                              AppTheme.lightPrimaryStart.withOpacity(0.1),
-                              AppTheme.lightPrimaryEnd.withOpacity(0.05),
+                              AppTheme.lightSecondaryStart.withOpacity(0.1),
+                              AppTheme.lightSecondaryEnd.withOpacity(0.05),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isDark 
-                              ? AppTheme.darkPrimaryStart.withOpacity(0.2)
-                              : AppTheme.lightPrimaryStart.withOpacity(0.2),
+                              ? AppTheme.darkSecondaryStart.withOpacity(0.2)
+                              : AppTheme.lightSecondaryStart.withOpacity(0.2),
                           ),
                         ),
                         padding: const EdgeInsets.all(16),
@@ -1674,8 +1710,8 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                     color: isDark 
-                                      ? AppTheme.darkPrimaryStart
-                                      : AppTheme.lightPrimaryStart,
+                                      ? AppTheme.darkSecondaryStart
+                                      : AppTheme.lightSecondaryStart,
                                   ),
                                 ),
                                 const Spacer(),
@@ -1684,8 +1720,8 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: isDark 
-                                      ? Colors.white70
-                                      : Colors.black54,
+                                      ? AppTheme.darkTextSecondary
+                                      : AppTheme.lightTextSecondary,
                                   ),
                                 ),
                               ],
@@ -1696,7 +1732,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : Colors.black87,
+                                color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -1704,7 +1740,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                               announcement.message,
                               style: TextStyle(
                                 fontSize: 14,
-                                color: isDark ? Colors.white70 : Colors.black54,
+                                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                                 height: 1.5,
                               ),
                               maxLines: 2,
@@ -1885,11 +1921,15 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
     return RefreshIndicator(
       onRefresh: _loadResources,
       displacement: 40.0,
-      color: Theme.of(context).primaryColor,
-      backgroundColor: Colors.white,
+      color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+      backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
       strokeWidth: 3.0,
       child: _isLoadingResources && _resources.isEmpty
-        ? const Center(child: CircularProgressIndicator())
+        ? Center(child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart
+            ),
+          ))
         : _resources.isEmpty
           ? _buildEmptyState(
               context,
@@ -1920,18 +1960,18 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: isDark ? [
-                              AppTheme.darkPrimaryStart.withOpacity(0.1),
-                              AppTheme.darkPrimaryEnd.withOpacity(0.05),
+                              AppTheme.darkSecondaryStart.withOpacity(0.1),
+                              AppTheme.darkSecondaryEnd.withOpacity(0.05),
                             ] : [
-                              AppTheme.lightPrimaryStart.withOpacity(0.1),
-                              AppTheme.lightPrimaryEnd.withOpacity(0.05),
+                              AppTheme.lightSecondaryStart.withOpacity(0.1),
+                              AppTheme.lightSecondaryEnd.withOpacity(0.05),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isDark 
-                              ? AppTheme.darkPrimaryStart.withOpacity(0.2)
-                              : AppTheme.lightPrimaryStart.withOpacity(0.2),
+                              ? AppTheme.darkSecondaryStart.withOpacity(0.2)
+                              : AppTheme.lightSecondaryStart.withOpacity(0.2),
                           ),
                         ),
                         padding: const EdgeInsets.all(16),
@@ -1962,7 +2002,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
-                                          color: isDark ? Colors.white : Colors.black87,
+                                          color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
@@ -1970,7 +2010,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                         DateFormat('MMM d, yyyy').format(resource.createdAt),
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: isDark ? Colors.white60 : Colors.black45,
+                                          color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                                         ),
                                       ),
                                     ],
@@ -2004,7 +2044,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                                      color: (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart).withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Row(
@@ -2016,7 +2056,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
                                             valueColor: AlwaysStoppedAnimation<Color>(
-                                              isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart
+                                              isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart
                                             ),
                                             value: _downloadProgress[resource.id],
                                           ),
@@ -2026,7 +2066,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                           '${(_downloadProgress[resource.id]! * 100).toStringAsFixed(0)}%',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                            color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -2038,35 +2078,59 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                             const SizedBox(height: 16),
                             Row(
                               children: [
-                                CircleAvatar(
-                                  radius: 12,
-                                  backgroundColor: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
-                                  child: Text(
-                                    resource.uploadedByName[0].toUpperCase(),
+                                if (resource.fileUrl != null) ...[
+                                  Icon(
+                                    _getFileIconData(resource.fileType),
+                                    size: 16,
+                                    color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Has attachment',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                      color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Uploaded by ${resource.uploadedByName}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDark ? Colors.white60 : Colors.black45,
+                                  const SizedBox(width: 8),
+                                ],
+                                Expanded( // Added Expanded to make the middle section flexible
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 12,
+                                        backgroundColor: (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart).withOpacity(0.1),
+                                        child: Text(
+                                          resource.uploadedByName[0].toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Flexible( // Added Flexible to allow text to wrap if needed
+                                        child: Text(
+                                          'Uploaded by ${resource.uploadedByName}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const Spacer(),
                                 if (!isDownloaded && !isDownloading)
                                   TextButton.icon(
                                     icon: const Icon(Icons.download, size: 16),
                                     label: const Text('Download'),
                                     onPressed: () => _downloadFile(resource),
                                     style: TextButton.styleFrom(
-                                      foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      foregroundColor: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced horizontal padding
                                     ),
                                   )
                                 else if (isDownloaded)
@@ -2075,8 +2139,8 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                     label: const Text('Open'),
                                     onPressed: () => _openFile(resource),
                                     style: TextButton.styleFrom(
-                                      foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      foregroundColor: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced horizontal padding
                                     ),
                                   ),
                               ],
@@ -2098,35 +2162,37 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
     required String title,
     required String message,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Center(
-                child: Padding(
+      child: Padding(
         padding: const EdgeInsets.all(32),
-                  child: Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
+          children: [
+            Icon(
               icon,
               size: 72,
-              color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
+              color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text(
               title,
-                        style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                          color: Colors.grey,
-                        ),
-                      ),
+                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.grey[600],
-                ),
+                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
               ),
-            ],
+            ),
+          ],
         ),
       ),
     );
@@ -2999,11 +3065,15 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
     return RefreshIndicator(
       onRefresh: _loadAssignments,
       displacement: 40.0,
-      color: Theme.of(context).primaryColor,
-      backgroundColor: Colors.white,
+      color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
+      backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
       strokeWidth: 3.0,
       child: _isLoadingAssignments && _assignments.isEmpty
-        ? const Center(child: CircularProgressIndicator())
+        ? Center(child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart
+            ),
+          ))
         : _assignments.isEmpty
           ? _buildEmptyState(
               context,
@@ -3022,7 +3092,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                 final bool isOverdue = DateTime.now().isAfter(assignment.deadline);
                 final bool isUpcoming = !isOverdue && DateTime.now().difference(assignment.deadline).inDays > -3;
                 
-                return Container(
+                return                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   child: Material(
                     color: Colors.transparent,
@@ -3035,11 +3105,11 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: isDark ? [
-                              AppTheme.darkPrimaryStart.withOpacity(0.1),
-                              AppTheme.darkPrimaryEnd.withOpacity(0.05),
+                              AppTheme.darkSecondaryStart.withOpacity(0.1),
+                              AppTheme.darkSecondaryEnd.withOpacity(0.05),
                             ] : [
-                              AppTheme.lightPrimaryStart.withOpacity(0.1),
-                              AppTheme.lightPrimaryEnd.withOpacity(0.05),
+                              AppTheme.lightSecondaryStart.withOpacity(0.1),
+                              AppTheme.lightSecondaryEnd.withOpacity(0.05),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(16),
@@ -3047,8 +3117,8 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                             color: isOverdue && !isLecturer && !hasSubmitted
                               ? Colors.red.withOpacity(0.3)
                               : isDark 
-                                ? AppTheme.darkPrimaryStart.withOpacity(0.2)
-                                : AppTheme.lightPrimaryStart.withOpacity(0.2),
+                                ? AppTheme.darkSecondaryStart.withOpacity(0.2)
+                                : AppTheme.lightSecondaryStart.withOpacity(0.2),
                           ),
                         ),
                         padding: const EdgeInsets.all(16),
@@ -3267,29 +3337,37 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                       color: isDark ? Colors.white60 : Colors.black45,
                                     ),
                                   ),
-                                  const SizedBox(width: 16),
+                                  const SizedBox(width: 8),
                                 ],
-                                CircleAvatar(
-                                  radius: 12,
-                                  backgroundColor: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
-                                  child: Text(
-                                    assignment.assignedByName[0].toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
-                                    ),
+                                Expanded( // Added Expanded to make the middle section flexible
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 12,
+                                        backgroundColor: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                                        child: Text(
+                                          assignment.assignedByName[0].toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Flexible( // Added Flexible to allow text to wrap if needed
+                                        child: Text(
+                                          'Posted by ${assignment.assignedByName}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? Colors.white60 : Colors.black45,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Posted by ${assignment.assignedByName}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDark ? Colors.white60 : Colors.black45,
-                                  ),
-                                ),
-                                const Spacer(),
                                 if (!isLecturer && !hasSubmitted)
                                   TextButton.icon(
                                     icon: const Icon(Icons.upload_file, size: 16),
@@ -3297,7 +3375,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                     onPressed: () => _submitAssignment(assignment),
                                     style: TextButton.styleFrom(
                                       foregroundColor: isOverdue ? Colors.red : (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart),
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced horizontal padding
                                     ),
                                   )
                                 else if (isLecturer)
@@ -3307,7 +3385,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                     onPressed: () => _viewSubmissions(assignment),
                                     style: TextButton.styleFrom(
                                       foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced horizontal padding
                                     ),
                                   ),
                               ],
@@ -3333,11 +3411,13 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
       builder: (context) => Container(
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? AppTheme.darkSurface : Colors.white,
+          color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: isDark 
+                ? AppTheme.darkTextSecondary.withOpacity(0.1)
+                : AppTheme.lightTextSecondary.withOpacity(0.1),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -3351,11 +3431,11 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: isDark ? [
-                    AppTheme.darkPrimaryStart,
-                    AppTheme.darkPrimaryEnd,
+                    AppTheme.darkSecondaryStart,
+                    AppTheme.darkSecondaryEnd,
                   ] : [
-                    AppTheme.lightPrimaryStart,
-                    AppTheme.lightPrimaryEnd,
+                    AppTheme.lightSecondaryStart,
+                    AppTheme.lightSecondaryEnd,
                   ],
                 ),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -3437,17 +3517,17 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                        color: (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.2),
+                          color: (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart).withOpacity(0.2),
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
                             Icons.key,
-                            color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                            color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
                             size: 20,
                           ),
                           const SizedBox(width: 12),
@@ -3458,7 +3538,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                 Text(
                                   'Class Code',
                                   style: TextStyle(
-                                    color: isDark ? Colors.white70 : Colors.black54,
+                                    color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -3468,7 +3548,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                    color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
                                     letterSpacing: 1,
                                   ),
                                 ),
@@ -3477,7 +3557,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                           ),
                           IconButton(
                             icon: const Icon(Icons.copy),
-                            color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                            color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
                             onPressed: () {
                               Clipboard.setData(ClipboardData(text: widget.classModel.code!));
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -3512,13 +3592,13 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+            color: (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart).withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
             size: 20,
-            color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+            color: isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart,
           ),
         ),
         const SizedBox(width: 16),
@@ -3529,7 +3609,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
               Text(
                 label,
                 style: TextStyle(
-                  color: isDark ? Colors.white70 : Colors.black54,
+                  color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
                   fontSize: 12,
                 ),
               ),
@@ -3539,7 +3619,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
                 ),
               ),
             ],
