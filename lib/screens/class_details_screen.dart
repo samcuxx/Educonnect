@@ -1566,7 +1566,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                         size: 24,
                       ),
                       const SizedBox(height: 4),
-                      const Text('Tasks'),
+                      const Text('Assignments'),
                     ],
                   ),
                 ),
