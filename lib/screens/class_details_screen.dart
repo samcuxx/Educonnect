@@ -19,6 +19,7 @@ import '../models/submission_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
 import '../services/supabase_service.dart';
+import '../utils/app_theme.dart';
 import 'submissions_screen.dart';
 
 class ClassDetailsScreen extends StatefulWidget {
@@ -1396,72 +1397,177 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final isLecturer = authProvider.isLecturer;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              widget.classModel.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+        elevation: 0,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+        title: ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: isDark ? [
+              AppTheme.darkPrimaryStart,
+              AppTheme.darkPrimaryEnd,
+            ] : [
+              AppTheme.lightPrimaryStart,
+              AppTheme.lightPrimaryEnd,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(bounds),
+          child: Text(
+            widget.classModel.name,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: Colors.white,
             ),
-            Text(
-              '${widget.classModel.courseCode} • ${widget.classModel.level}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-              ),
-            ),
-          ],
+          ),
         ),
         centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Announcements'),
-            Tab(text: 'Resources'),
-            Tab(text: 'Assignments'),
-          ],
+        iconTheme: IconThemeData(
+          color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
         ),
         actions: [
           // Add action button based on user role
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'leave') {
-                _leaveClass();
-              } else if (value == 'delete') {
-                _deleteClass();
-              }
-            },
-            itemBuilder: (context) => [
-              if (isLecturer)
-                const PopupMenuItem(
-                  value: 'delete',
+          Theme(
+            data: Theme.of(context).copyWith(
+              popupMenuTheme: PopupMenuThemeData(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            child: PopupMenuButton<String>(
+              icon: Icon(
+                Icons.more_vert,
+                color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+              ),
+              onSelected: (value) {
+                if (value == 'leave') {
+                  _leaveClass();
+                } else if (value == 'delete') {
+                  _deleteClass();
+                } else if (value == 'details') {
+                  _showClassDetails();
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'details',
                   child: Row(
                     children: [
-                      Icon(Icons.delete, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Delete Class'),
-                    ],
-                  ),
-                )
-              else
-                const PopupMenuItem(
-                  value: 'leave',
-                  child: Row(
-                    children: [
-                      Icon(Icons.exit_to_app, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Leave Class'),
+                      Icon(
+                        Icons.info_outline,
+                        color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text('Class Details'),
                     ],
                   ),
                 ),
-            ],
+                if (isLecturer)
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, color: Colors.red, size: 20),
+                        SizedBox(width: 12),
+                        Text('Delete Class'),
+                      ],
+                    ),
+                  )
+                else
+                  const PopupMenuItem(
+                    value: 'leave',
+                    child: Row(
+                      children: [
+                        Icon(Icons.exit_to_app, color: Colors.red, size: 20),
+                        SizedBox(width: 12),
+                        Text('Leave Class'),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(72),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.darkSurface : Colors.white,
+              border: Border(
+                bottom: BorderSide(
+                  color: isDark
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.black.withOpacity(0.1),
+                ),
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.normal,
+                fontSize: 12,
+              ),
+              labelColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+              unselectedLabelColor: isDark ? Colors.white.withOpacity(0.5) : Colors.black.withOpacity(0.5),
+              indicatorColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+              indicatorWeight: 3,
+              indicatorSize: TabBarIndicatorSize.label,
+              tabs: [
+                Tab(
+                  height: 56,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.announcement_outlined,
+                        size: 24,
+                      ),
+                      const SizedBox(height: 4),
+                      const Text('Updates'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  height: 56,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.folder_outlined,
+                        size: 24,
+                      ),
+                      const SizedBox(height: 4),
+                      const Text('Resources'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  height: 56,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.assignment_outlined,
+                        size: 24,
+                      ),
+                      const SizedBox(height: 4),
+                      const Text('Tasks'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       // Add floating action button for lecturers to create announcements, upload resources, or create assignments
       floatingActionButton: isLecturer ? FloatingActionButton(
@@ -1489,7 +1595,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
       ) : null,
       body: TabBarView(
         controller: _tabController,
-            children: [
+        children: [
           // Announcements Tab
           _buildAnnouncementsTab(context, isLecturer),
           
@@ -1504,6 +1610,8 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
   }
   
   Widget _buildAnnouncementsTab(BuildContext context, bool isLecturer) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return RefreshIndicator(
       onRefresh: _loadAnnouncements,
       displacement: 40.0,
@@ -1521,105 +1629,86 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                 ? 'Tap + to post an announcement for your class'
                 : 'Stay tuned for updates from your lecturer',
             )
-          : AnimatedList(
-              key: GlobalKey<AnimatedListState>(),
-              initialItemCount: _announcements.length,
-              padding: const EdgeInsets.all(16),
+          : ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: _announcements.length,
               physics: const AlwaysScrollableScrollPhysics(),
-              itemBuilder: (context, index, animation) {
+              itemBuilder: (context, index) {
                 final announcement = _announcements[index];
-                return FadeTransition(
-                  opacity: animation.drive(CurveTween(curve: Curves.easeIn)),
-                  child: SlideTransition(
-                    position: animation.drive(Tween<Offset>(
-                      begin: const Offset(0, 0.5),
-                      end: Offset.zero,
-                    ).chain(CurveTween(curve: Curves.easeOut))),
-                    child: Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _showAnnouncementDetails(announcement),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: isDark ? [
+                              AppTheme.darkPrimaryStart.withOpacity(0.1),
+                              AppTheme.darkPrimaryEnd.withOpacity(0.05),
+                            ] : [
+                              AppTheme.lightPrimaryStart.withOpacity(0.1),
+                              AppTheme.lightPrimaryEnd.withOpacity(0.05),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark 
+                              ? AppTheme.darkPrimaryStart.withOpacity(0.2)
+                              : AppTheme.lightPrimaryStart.withOpacity(0.2),
+                          ),
+                        ),
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).primaryColor.withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    Icons.announcement_outlined,
-                                    color: Theme.of(context).primaryColor,
+                                Text(
+                                  DateFormat('MMM d').format(announcement.createdAt),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark 
+                                      ? AppTheme.darkPrimaryStart
+                                      : AppTheme.lightPrimaryStart,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    announcement.title,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
+                                const Spacer(),
+                                Text(
+                                  DateFormat('h:mm a').format(announcement.createdAt),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark 
+                                      ? Colors.white70
+                                      : Colors.black54,
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                announcement.message,
-                                style: const TextStyle(fontSize: 15),
+                            Text(
+                              announcement.title,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
-                                      child: Text(
-                                        announcement.postedByName.substring(0, 1),
-                                        style: TextStyle(
-                                          color: Theme.of(context).primaryColor,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      announcement.postedByName,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[700],
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  _getFormattedDate(announcement.createdAt),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(height: 8),
+                            Text(
+                              announcement.message,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                                height: 1.5,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -1631,8 +1720,168 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
             ),
     );
   }
+
+  void _showAnnouncementDetails(AnnouncementModel announcement) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient(isDark),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.announcement_outlined,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          announcement.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _getFormattedDate(announcement.createdAt),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: (isDark
+                          ? AppTheme.darkPrimaryStart
+                          : AppTheme.lightPrimaryStart).withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: (isDark
+                            ? AppTheme.darkPrimaryStart
+                            : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                        ),
+                      ),
+                      child: Text(
+                        announcement.message,
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 1.6,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: (isDark
+                            ? AppTheme.darkPrimaryStart
+                            : AppTheme.lightPrimaryStart).withOpacity(0.2),
+                          child: Text(
+                            announcement.postedByName.substring(0, 1).toUpperCase(),
+                            style: TextStyle(
+                              color: isDark
+                                ? AppTheme.darkPrimaryStart
+                                : AppTheme.lightPrimaryStart,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Posted by',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white60 : Colors.black45,
+                              ),
+                            ),
+                            Text(
+                              announcement.postedByName,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
   
   Widget _buildResourcesTab(BuildContext context, bool isLecturer) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return RefreshIndicator(
       onRefresh: _loadResources,
       displacement: 40.0,
@@ -1651,120 +1900,189 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                 : 'Resources will be shared by your lecturer soon',
             )
           : ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               itemCount: _resources.length,
               itemBuilder: (context, index) {
                 final resource = _resources[index];
                 final bool isDownloading = _downloadProgress.containsKey(resource.id);
                 final bool isDownloaded = _downloadedFiles.containsKey(resource.id);
                 
-                return Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: InkWell(
-                    onTap: isDownloaded ? () => _openFile(resource) : null,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: _getFileColor(resource.fileType).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: _getFileIcon(resource.fileType),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      resource.title,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Uploaded by ${resource.uploadedByName} • ${DateFormat('MMM d, yyyy').format(resource.createdAt)}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: isDownloaded ? () => _openFile(resource) : null,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: isDark ? [
+                              AppTheme.darkPrimaryStart.withOpacity(0.1),
+                              AppTheme.darkPrimaryEnd.withOpacity(0.05),
+                            ] : [
+                              AppTheme.lightPrimaryStart.withOpacity(0.1),
+                              AppTheme.lightPrimaryEnd.withOpacity(0.05),
                             ],
                           ),
-                          
-                          // Show progress bar if downloading
-                          if (isDownloading)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: LinearProgressIndicator(
-                                value: _downloadProgress[resource.id],
-                                backgroundColor: Colors.grey[200],
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ),
-                          
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark 
+                              ? AppTheme.darkPrimaryStart.withOpacity(0.2)
+                              : AppTheme.lightPrimaryStart.withOpacity(0.2),
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: _getFileColor(resource.fileType).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    _getFileIconData(resource.fileType),
+                                    color: _getFileColor(resource.fileType),
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        resource.title,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        DateFormat('MMM d, yyyy').format(resource.createdAt),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isDark ? Colors.white60 : Colors.black45,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 if (isDownloaded)
-                                  TextButton.icon(
-                                    icon: const Icon(Icons.open_in_new, size: 16),
-                                    label: const Text('Open'),
-                                    onPressed: () => _openFile(resource),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle, color: Colors.green, size: 14),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Downloaded',
+                                          style: TextStyle(
+                                            color: Colors.green,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   )
                                 else if (isDownloading)
-                                  TextButton.icon(
-                                    icon: const SizedBox(
-                                      width: 16, 
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    label: Text(
-                                      '${(_downloadProgress[resource.id]! * 100).toStringAsFixed(0)}%',
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(
+                                          width: 12,
+                                          height: 12,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(
+                                              isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart
+                                            ),
+                                            value: _downloadProgress[resource.id],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          '${(_downloadProgress[resource.id]! * 100).toStringAsFixed(0)}%',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    onPressed: null,
-                                  )
-                                else
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 12,
+                                  backgroundColor: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                                  child: Text(
+                                    resource.uploadedByName[0].toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Uploaded by ${resource.uploadedByName}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.white60 : Colors.black45,
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (!isDownloaded && !isDownloading)
                                   TextButton.icon(
                                     icon: const Icon(Icons.download, size: 16),
                                     label: const Text('Download'),
                                     onPressed: () => _downloadFile(resource),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    ),
+                                  )
+                                else if (isDownloaded)
+                                  TextButton.icon(
+                                    icon: const Icon(Icons.open_in_new, size: 16),
+                                    label: const Text('Open'),
+                                    onPressed: () => _openFile(resource),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    ),
                                   ),
-                                
-                                const SizedBox(width: 8),
-                                
-                                // Info button to show file details
-                                IconButton(
-                                  icon: const Icon(Icons.info_outline, size: 16),
-                                  onPressed: () {
-                                    _showResourceInfoDialog(context, resource);
-                                  },
-                                ),
                               ],
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -2676,6 +2994,8 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
   
   // Build the assignments tab view
   Widget _buildAssignmentsTab(BuildContext context, bool isLecturer) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return RefreshIndicator(
       onRefresh: _loadAssignments,
       displacement: 40.0,
@@ -2694,165 +3014,270 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                 : 'Your lecturer has not posted any assignments yet',
             )
           : ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               itemCount: _assignments.length,
               itemBuilder: (context, index) {
                 final assignment = _assignments[index];
                 final bool hasSubmitted = _assignmentSubmissions[assignment.id] ?? false;
                 final bool isOverdue = DateTime.now().isAfter(assignment.deadline);
+                final bool isUpcoming = !isOverdue && DateTime.now().difference(assignment.deadline).inDays > -3;
                 
-                return Card(
-                  elevation: 2,
+                return Container(
                   margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: isOverdue && !isLecturer && !hasSubmitted
-                      ? BorderSide(color: Colors.red, width: 1.5)
-                      : BorderSide.none,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => isLecturer ? _viewSubmissions(assignment) : null,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: isDark ? [
+                              AppTheme.darkPrimaryStart.withOpacity(0.1),
+                              AppTheme.darkPrimaryEnd.withOpacity(0.05),
+                            ] : [
+                              AppTheme.lightPrimaryStart.withOpacity(0.1),
+                              AppTheme.lightPrimaryEnd.withOpacity(0.05),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isOverdue && !isLecturer && !hasSubmitted
+                              ? Colors.red.withOpacity(0.3)
+                              : isDark 
+                                ? AppTheme.darkPrimaryStart.withOpacity(0.2)
+                                : AppTheme.lightPrimaryStart.withOpacity(0.2),
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: (isOverdue ? Colors.red : Theme.of(context).primaryColor).withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.assignment,
-                                color: isOverdue ? Colors.red : Theme.of(context).primaryColor,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    assignment.title,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: (isOverdue && !hasSubmitted
+                                      ? Colors.red
+                                      : isUpcoming
+                                        ? Colors.orange
+                                        : isDark 
+                                          ? AppTheme.darkPrimaryStart 
+                                          : AppTheme.lightPrimaryStart
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Row(
+                                  child: Icon(
+                                    isOverdue && !hasSubmitted
+                                      ? Icons.warning_rounded
+                                      : isUpcoming
+                                        ? Icons.timer
+                                        : Icons.assignment_outlined,
+                                    color: isOverdue && !hasSubmitted
+                                      ? Colors.red
+                                      : isUpcoming
+                                        ? Colors.orange
+                                        : isDark 
+                                          ? AppTheme.darkPrimaryStart 
+                                          : AppTheme.lightPrimaryStart,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Icon(
-                                        Icons.calendar_today,
-                                        size: 14,
-                                        color: isOverdue ? Colors.red : Colors.grey[600],
-                                      ),
-                                      const SizedBox(width: 4),
                                       Text(
-                                        'Due: ${DateFormat('MMM d, yyyy • h:mm a').format(assignment.deadline)}',
+                                        assignment.title,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Due ${DateFormat('MMM d, yyyy • h:mm a').format(assignment.deadline)}',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: isOverdue ? Colors.red : Colors.grey[600],
-                                          fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
+                                          color: isOverdue && !hasSubmitted && !isLecturer
+                                            ? Colors.red
+                                            : isDark ? Colors.white60 : Colors.black45,
+                                          fontWeight: isOverdue && !hasSubmitted && !isLecturer
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        if (assignment.description != null && assignment.description!.isNotEmpty) ...[
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              assignment.description!,
-                              style: const TextStyle(fontSize: 15),
-                            ),
-                          ),
-                        ],
-                        
-                        if (assignment.fileUrl != null) ...[
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: _getFileColor(assignment.fileType).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: _getFileIcon(assignment.fileType),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    "Assignment attachment",
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                
-                                // Show different actions based on file status
-                                if (_downloadedAssignments.containsKey(assignment.id))
-                                  TextButton.icon(
-                                    icon: const Icon(Icons.open_in_new, size: 16),
-                                    label: const Text('Open'),
-                                    onPressed: () => _openAssignmentFile(assignment),
-                                  )
-                                else if (_assignmentDownloadProgress.containsKey(assignment.id))
-                                  TextButton.icon(
-                                    icon: const SizedBox(
-                                      width: 16, 
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
+                                if (!isLecturer && hasSubmitted)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.green.withOpacity(0.3)),
                                     ),
-                                    label: Text(
-                                      '${(_assignmentDownloadProgress[assignment.id]! * 100).toStringAsFixed(0)}%',
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle, color: Colors.green, size: 14),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Submitted',
+                                          style: TextStyle(
+                                            color: Colors.green,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    onPressed: null,
-                                  )
-                                else
-                                  TextButton.icon(
-                                    icon: const Icon(Icons.download, size: 16),
-                                    label: const Text('Download'),
-                                    onPressed: () => _downloadAssignmentFile(assignment),
                                   ),
                               ],
                             ),
-                          ),
-                        ],
-                        
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
+                            if (assignment.description != null && assignment.description!.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                assignment.description!,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark ? Colors.white70 : Colors.black54,
+                                  height: 1.5,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                            if (assignment.fileUrl != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: (isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isDark ? Colors.white24 : Colors.black12,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: _getFileColor(assignment.fileType).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        _getFileIconData(assignment.fileType),
+                                        color: _getFileColor(assignment.fileType),
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Assignment Document',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark ? Colors.white : Colors.black87,
+                                            ),
+                                          ),
+                                          Text(
+                                            assignment.fileType,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDark ? Colors.white60 : Colors.black45,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (_downloadedAssignments.containsKey(assignment.id))
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.open_in_new, size: 16),
+                                        label: const Text('Open'),
+                                        onPressed: () => _openAssignmentFile(assignment),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                        ),
+                                      )
+                                    else if (_assignmentDownloadProgress.containsKey(assignment.id))
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor: AlwaysStoppedAnimation<Color>(
+                                                isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart
+                                              ),
+                                              value: _assignmentDownloadProgress[assignment.id],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '${(_assignmentDownloadProgress[assignment.id]! * 100).toStringAsFixed(0)}%',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    else
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.download, size: 16),
+                                        label: const Text('Download'),
+                                        onPressed: () => _downloadAssignmentFile(assignment),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 16),
                             Row(
                               children: [
+                                if (assignment.fileUrl != null) ...[
+                                  Icon(
+                                    _getFileIconData(assignment.fileType),
+                                    size: 16,
+                                    color: isDark ? Colors.white60 : Colors.black45,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Has attachment',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? Colors.white60 : Colors.black45,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                ],
                                 CircleAvatar(
                                   radius: 12,
-                                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                                  backgroundColor: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
                                   child: Text(
-                                    assignment.assignedByName.substring(0, 1),
+                                    assignment.assignedByName[0].toUpperCase(),
                                     style: TextStyle(
-                                      color: Theme.of(context).primaryColor,
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
+                                      color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
                                     ),
                                   ),
                                 ),
@@ -2860,64 +3285,267 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen> with SingleTick
                                 Text(
                                   'Posted by ${assignment.assignedByName}',
                                   style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey[700],
+                                    fontSize: 12,
+                                    color: isDark ? Colors.white60 : Colors.black45,
                                   ),
                                 ),
+                                const Spacer(),
+                                if (!isLecturer && !hasSubmitted)
+                                  TextButton.icon(
+                                    icon: const Icon(Icons.upload_file, size: 16),
+                                    label: Text(isOverdue ? 'Submit Late' : 'Submit'),
+                                    onPressed: () => _submitAssignment(assignment),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: isOverdue ? Colors.red : (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    ),
+                                  )
+                                else if (isLecturer)
+                                  TextButton.icon(
+                                    icon: const Icon(Icons.people, size: 16),
+                                    label: const Text('View'),
+                                    onPressed: () => _viewSubmissions(assignment),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    ),
+                                  ),
                               ],
                             ),
-                            if (!isLecturer) ...[
-                              if (hasSubmitted)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: Colors.green),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.check_circle, color: Colors.green, size: 16),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'Submitted',
-                                        style: TextStyle(
-                                          color: Colors.green,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.upload_file, size: 16),
-                                  label: Text(isOverdue ? 'Submit Late' : 'Submit'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: isOverdue ? Colors.red : null,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  ),
-                                  onPressed: () => _submitAssignment(assignment),
-                                ),
-                            ] else
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.people, size: 16),
-                                label: const Text('Submissions'),
-                                onPressed: () => _viewSubmissions(assignment),
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                ),
-                              ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 );
               },
             ),
+    );
+  }
+
+  // Add new method to show class details
+  void _showClassDetails() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDark ? [
+                    AppTheme.darkPrimaryStart,
+                    AppTheme.darkPrimaryEnd,
+                  ] : [
+                    AppTheme.lightPrimaryStart,
+                    AppTheme.lightPrimaryEnd,
+                  ],
+                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.class_,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.classModel.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.classModel.courseCode,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  _buildDetailRow(
+                    icon: Icons.school,
+                    label: 'Level',
+                    value: widget.classModel.level,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDetailRow(
+                    icon: Icons.people,
+                    label: 'Students',
+                    value: _isLoadingCount ? 'Loading...' : '$_studentsCount enrolled',
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDetailRow(
+                    icon: Icons.calendar_today,
+                    label: 'Created',
+                    value: DateFormat('MMMM d, yyyy').format(widget.classModel.createdAt),
+                    isDark: isDark,
+                  ),
+                  if (widget.classModel.code != null) ...[
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.key,
+                            color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Class Code',
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white70 : Colors.black54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.classModel.code!,
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.copy),
+                            color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: widget.classModel.code!));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Class code copied to clipboard'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool isDark,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 } 

@@ -9,6 +9,7 @@ class AssignmentModel {
   final DateTime createdAt;
   final DateTime deadline;
   final String fileType;      // For document attachments
+  final int totalStudents;
 
   AssignmentModel({
     required this.id,
@@ -21,6 +22,7 @@ class AssignmentModel {
     required this.createdAt,
     required this.deadline,
     required this.fileType,
+    required this.totalStudents,
   });
 
   factory AssignmentModel.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class AssignmentModel {
       createdAt: DateTime.parse(json['created_at']),
       deadline: DateTime.parse(json['deadline']),
       fileType: json['file_type'] ?? _determineFileType(json['file_url']),
+      totalStudents: json['total_students'] ?? 0,
     );
   }
 
@@ -50,6 +53,7 @@ class AssignmentModel {
       'created_at': createdAt.toIso8601String(),
       'deadline': deadline.toIso8601String(),
       'file_type': fileType,
+      'total_students': totalStudents,
     };
   }
 

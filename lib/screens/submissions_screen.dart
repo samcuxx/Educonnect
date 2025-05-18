@@ -13,6 +13,7 @@ import '../models/assignment_model.dart';
 import '../models/submission_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/supabase_service.dart';
+import '../utils/app_theme.dart';
 
 class SubmissionsScreen extends StatefulWidget {
   final AssignmentModel assignment;
@@ -31,67 +32,21 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
   List<SubmissionModel> _submissions = [];
   
   // Tracking download progress and downloaded files
-  Map<String, double> _downloadProgress = {};
-  Map<String, String> _downloadedFiles = {};
+  Map<String, double> _submissionDownloadProgress = {};
+  Map<String, String> _downloadedSubmissions = {};
   
   @override
   void initState() {
     super.initState();
     _loadSubmissions();
-    _loadDownloadedFiles();
-  }
-  
-  // Load downloaded files info
-  Future<void> _loadDownloadedFiles() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final fileMap = prefs.getString('downloaded_submissions_${widget.assignment.id}');
-      
-      if (fileMap != null) {
-        setState(() {
-          _downloadedFiles = Map<String, String>.from(json.decode(fileMap));
-        });
-        
-        // Verify files still exist
-        for (final submissionId in _downloadedFiles.keys.toList()) {
-          final filePath = _downloadedFiles[submissionId];
-          if (filePath != null) {
-            final file = File(filePath);
-            if (!await file.exists()) {
-              setState(() {
-                _downloadedFiles.remove(submissionId);
-              });
-            }
-          }
-        }
-        
-        // Save changes if any files were removed
-        await _saveDownloadedFiles();
-      }
-    } catch (e) {
-      print('Error loading downloaded submissions: $e');
-    }
-  }
-  
-  // Save downloaded files info
-  Future<void> _saveDownloadedFiles() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        'downloaded_submissions_${widget.assignment.id}',
-        json.encode(_downloadedFiles)
-      );
-    } catch (e) {
-      print('Error saving downloaded submissions: $e');
-    }
   }
   
   Future<void> _loadSubmissions() async {
-    try {
       setState(() {
         _isLoading = true;
       });
       
+    try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final supabaseService = authProvider.supabaseService;
       
@@ -119,14 +74,14 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
   
   // Download a submission file
   Future<void> _downloadSubmissionFile(SubmissionModel submission) async {
-    if (_downloadProgress.containsKey(submission.id) || submission.fileUrl == null) {
+    if (_submissionDownloadProgress.containsKey(submission.id) || submission.fileUrl == null) {
       return; // Already downloading or no file URL
     }
     
     try {
       // Initialize progress
       setState(() {
-        _downloadProgress[submission.id] = 0.0;
+        _submissionDownloadProgress[submission.id] = 0.0;
       });
       
       // Create the downloads directory if it doesn't exist
@@ -168,7 +123,7 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
         
         if (contentLength > 0) {
           setState(() {
-            _downloadProgress[submission.id] = bytesReceived / contentLength;
+            _submissionDownloadProgress[submission.id] = bytesReceived / contentLength;
           });
         }
       }).asFuture();
@@ -178,12 +133,9 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
       
       // Save the file path
       setState(() {
-        _downloadedFiles[submission.id] = filePath;
-        _downloadProgress.remove(submission.id);
+        _downloadedSubmissions[submission.id] = filePath;
+        _submissionDownloadProgress.remove(submission.id);
       });
-      
-      // Update the stored list of downloaded files
-      await _saveDownloadedFiles();
       
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -198,7 +150,7 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
       
       // Remove progress indicator
       setState(() {
-        _downloadProgress.remove(submission.id);
+        _submissionDownloadProgress.remove(submission.id);
       });
       
       // Show error message
@@ -215,7 +167,7 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
   // Open a downloaded submission file
   Future<void> _openSubmissionFile(SubmissionModel submission) async {
     try {
-      final filePath = _downloadedFiles[submission.id];
+      final filePath = _downloadedSubmissions[submission.id];
       if (filePath == null) {
         throw Exception('File not found');
       }
@@ -235,9 +187,8 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
       // Remove from downloaded files if it doesn't exist
       if (e.toString().contains('no longer exists') || e.toString().contains('not found')) {
         setState(() {
-          _downloadedFiles.remove(submission.id);
+          _downloadedSubmissions.remove(submission.id);
         });
-        await _saveDownloadedFiles();
       }
       
       // Show error message
@@ -266,32 +217,25 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
   
   // Get file icon and color based on file type
   IconData _getFileIconData(String fileType) {
-    switch (fileType) {
-      case 'PDF':
-        return Icons.picture_as_pdf;
-      case 'Word':
-        return Icons.description;
-      case 'Excel':
-        return Icons.table_chart;
-      case 'PowerPoint':
-        return Icons.slideshow;
-      case 'Image':
-        return Icons.image;
-      case 'Text':
-        return Icons.article;
-      default:
-        return Icons.insert_drive_file;
+    switch (fileType.toLowerCase()) {
+      case 'pdf': return Icons.picture_as_pdf;
+      case 'word': return Icons.description;
+      case 'excel': return Icons.table_chart;
+      case 'powerpoint': return Icons.slideshow;
+      case 'image': return Icons.image;
+      case 'text': return Icons.article;
+      default: return Icons.insert_drive_file;
     }
   }
   
   Color _getFileColor(String fileType) {
-    switch (fileType) {
-      case 'PDF': return Colors.red;
-      case 'Word': return Colors.blue;
-      case 'Excel': return Colors.green;
-      case 'PowerPoint': return Colors.orange;
-      case 'Image': return Colors.purple;
-      case 'Text': return Colors.grey;
+    switch (fileType.toLowerCase()) {
+      case 'pdf': return Colors.red;
+      case 'word': return Colors.blue;
+      case 'excel': return Colors.green;
+      case 'powerpoint': return Colors.orange;
+      case 'image': return Colors.purple;
+      case 'text': return Colors.grey;
       default: return Colors.grey;
     }
   }
@@ -303,137 +247,351 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Submissions'),
             Text(
               widget.assignment.title,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.normal,
+                color: isDark ? Colors.white : Colors.black87,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              'Due ${DateFormat('MMM d, yyyy • h:mm a').format(widget.assignment.deadline)}',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.white60 : Colors.black45,
               ),
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _loadSubmissions,
-            tooltip: 'Refresh',
-          ),
-        ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+        ? const Center(child: CircularProgressIndicator())
           : _submissions.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.assignment_late_outlined,
-                        size: 72,
-                        color: Colors.grey[400],
+                    Icons.assignment_outlined,
+                    size: 64,
+                    color: isDark ? Colors.white38 : Colors.black26,
                       ),
                       const SizedBox(height: 16),
-                      const Text(
+                  Text(
                         'No submissions yet',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey,
+                      color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Students have not submitted\nthis assignment yet',
-                        textAlign: TextAlign.center,
+                    'Students have not submitted their work',
                         style: TextStyle(
-                          color: Colors.grey[600],
+                      color: isDark ? Colors.white60 : Colors.black45,
                         ),
                       ),
                     ],
                   ),
                 )
-              : ListView.builder(
-                  itemCount: _submissions.length,
-                  itemBuilder: (context, index) {
-                    final submission = _submissions[index];
-                    final isLate = _isSubmissionLate(submission.submittedAt);
-                    
-                    return Card(
-                      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      elevation: 1,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+          : CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isDark ? [
+                            AppTheme.darkPrimaryStart.withOpacity(0.1),
+                            AppTheme.darkPrimaryEnd.withOpacity(0.05),
+                          ] : [
+                            AppTheme.lightPrimaryStart.withOpacity(0.1),
+                            AppTheme.lightPrimaryEnd.withOpacity(0.05),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark 
+                            ? AppTheme.darkPrimaryStart.withOpacity(0.2)
+                            : AppTheme.lightPrimaryStart.withOpacity(0.2),
+                        ),
                       ),
-                      child: ListTile(
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        onTap: submission.fileUrl != null
-                          ? _downloadedFiles.containsKey(submission.id)
-                              ? () => _openSubmissionFile(submission)
-                              : () => _downloadSubmissionFile(submission)
-                          : null,
-                        title: Row(
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                submission.studentName,
+                                  Text(
+                                    'Total Submissions',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: isDark ? Colors.white60 : Colors.black45,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _submissions.length.toString(),
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 16,
-                                  color: isLate ? Colors.red : null,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : Colors.black87,
                                 ),
                               ),
-                            ),
-                            if (submission.studentNumber != null)
-                              Text(
-                                submission.studentNumber!,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w400,
-                                  fontSize: 14,
+                                ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.assignment_turned_in,
+                                  color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                  size: 24,
                                 ),
                               ),
                           ],
                         ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            DateFormat('MMM d, yyyy • h:mm a').format(submission.submittedAt),
+                          const SizedBox(height: 16),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: widget.assignment.totalStudents > 0
+                                ? _submissions.length / widget.assignment.totalStudents
+                                : 0,
+                              backgroundColor: isDark ? Colors.white12 : Colors.black12,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                              ),
+                              minHeight: 8,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${(widget.assignment.totalStudents > 0 ? (_submissions.length / widget.assignment.totalStudents * 100) : 0).toStringAsFixed(1)}% of students submitted',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isLate ? Colors.red.withOpacity(0.8) : Colors.grey[600],
+                              color: isDark ? Colors.white60 : Colors.black45,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final submission = _submissions[index];
+                        final bool isDownloading = _submissionDownloadProgress.containsKey(submission.id);
+                        final bool isDownloaded = _downloadedSubmissions.containsKey(submission.id);
+                        
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: submission.fileUrl != null && isDownloaded 
+                                ? () => _openSubmissionFile(submission)
+                                : null,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.02),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isDark ? Colors.white12 : Colors.black12,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 20,
+                                          backgroundColor: (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1),
+                                          child: Text(
+                                            submission.studentName[0].toUpperCase(),
+                                            style: TextStyle(
+                                              color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                submission.studentName,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isDark ? Colors.white : Colors.black87,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Submitted ${DateFormat('MMM d, yyyy • h:mm a').format(submission.submittedAt)}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: isDark ? Colors.white60 : Colors.black45,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: submission.submittedAt.isBefore(widget.assignment.deadline)
+                                              ? Colors.green.withOpacity(0.1)
+                                              : Colors.orange.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            submission.submittedAt.isBefore(widget.assignment.deadline)
+                                              ? 'On Time'
+                                              : 'Late',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: submission.submittedAt.isBefore(widget.assignment.deadline)
+                                                ? Colors.green
+                                                : Colors.orange,
+                                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
-                        trailing: submission.fileUrl != null
-                          ? _downloadedFiles.containsKey(submission.id)
-                              ? Icon(
-                                  Icons.visibility,
-                                  color: Theme.of(context).primaryColor,
-                                )
-                              : _downloadProgress.containsKey(submission.id)
-                                ? SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      value: _downloadProgress[submission.id],
-                                      strokeWidth: 2,
-                                      color: Theme.of(context).primaryColor,
+                                      ],
                                     ),
-                                  )
-                                : Icon(
-                                    Icons.download,
-                                    color: Theme.of(context).primaryColor,
-                                  )
-                          : null,
+                                    if (submission.fileUrl != null) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.02),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: _getFileColor(submission.fileType).withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Icon(
+                                                _getFileIconData(submission.fileType),
+                                                color: _getFileColor(submission.fileType),
+                                                size: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Submission File',
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.w500,
+                                                      color: isDark ? Colors.white : Colors.black87,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    submission.fileType,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: isDark ? Colors.white60 : Colors.black45,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            if (isDownloaded)
+                                              TextButton.icon(
+                                                icon: const Icon(Icons.open_in_new, size: 16),
+                                                label: const Text('Open'),
+                                                onPressed: () => _openSubmissionFile(submission),
+                                                style: TextButton.styleFrom(
+                                                  foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                                ),
+                                              )
+                                            else if (isDownloading)
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  SizedBox(
+                                                    width: 16,
+                                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                                        isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart
+                                                      ),
+                                                      value: _submissionDownloadProgress[submission.id],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    '${(_submissionDownloadProgress[submission.id]! * 100).toStringAsFixed(0)}%',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            else
+                                              TextButton.icon(
+                                                icon: const Icon(Icons.download, size: 16),
+                                                label: const Text('Download'),
+                                                onPressed: () => _downloadSubmissionFile(submission),
+                                                style: TextButton.styleFrom(
+                                                  foregroundColor: isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
                       ),
                     );
                   },
+                      childCount: _submissions.length,
+                    ),
+                  ),
+                ),
+                const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
+              ],
                 ),
     );
   }

@@ -4,9 +4,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'services/supabase_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/class_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/class_dashboard_screen.dart';
+import 'screens/dashboard/dashboard_screen.dart';
 import 'models/user_model.dart';
+import 'utils/app_theme.dart';
 
 // Replace these with your own Supabase project credentials
 // You can find these in your Supabase project settings > API
@@ -31,6 +34,9 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => ClassProvider(supabaseService),
         ),
+        ChangeNotifierProvider(
+          create: (_) => ThemeProvider(),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -42,13 +48,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return MaterialApp(
       title: 'EduConnect',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeProvider.themeMode,
       home: const AuthWrapper(),
     );
   }
@@ -65,9 +72,13 @@ class AuthWrapper extends StatelessWidget {
     // Show loading indicator while checking auth status
     if (authProvider.status == AuthStatus.loading || 
         authProvider.status == AuthStatus.initial) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Theme.of(context).colorScheme.primary,
+            ),
+          ),
         ),
       );
     }
@@ -78,6 +89,6 @@ class AuthWrapper extends StatelessWidget {
     }
 
     // Show unified dashboard for both user types
-    return const ClassDashboardScreen();
+    return const DashboardScreen();
   }
 }
