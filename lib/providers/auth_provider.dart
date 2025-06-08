@@ -63,6 +63,51 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Check if email already exists
+  Future<bool> checkEmailExists(String email) async {
+    try {
+      return await _supabaseService.isEmailExists(email);
+    } catch (e) {
+      print('Error checking email: $e');
+      return false;
+    }
+  }
+
+  // Check if phone number already exists
+  Future<bool> checkPhoneExists(String phoneNumber) async {
+    try {
+      return await _supabaseService.isPhoneNumberExists(phoneNumber);
+    } catch (e) {
+      print('Error checking phone: $e');
+      return false;
+    }
+  }
+
+  // Send OTP to phone number
+  Future<bool> sendOtp(String phoneNumber) async {
+    try {
+      return await _supabaseService.mnotifyService.sendOtp(
+        phoneNumber: phoneNumber,
+      );
+    } catch (e) {
+      print('Error sending OTP: $e');
+      return false;
+    }
+  }
+
+  // Verify OTP
+  bool verifyOtp(String phoneNumber, String otp) {
+    try {
+      return _supabaseService.mnotifyService.verifyOtp(
+        phoneNumber: phoneNumber,
+        otp: otp,
+      );
+    } catch (e) {
+      print('Error verifying OTP: $e');
+      return false;
+    }
+  }
+
   // Sign in with email and password
   Future<void> signIn({required String email, required String password}) async {
     _status = AuthStatus.loading;

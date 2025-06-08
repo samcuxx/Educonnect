@@ -21,6 +21,9 @@ class SupabaseService {
     _mnotifyService = MNotifyService(apiKey: AppConfig.mNotifyApiKey);
   }
 
+  // Get MNotify service instance for OTP operations
+  MNotifyService get mnotifyService => _mnotifyService;
+
   // Initialize Supabase
   static Future<SupabaseService> init({
     required String supabaseUrl,
@@ -87,6 +90,39 @@ class SupabaseService {
     } catch (e) {
       print('Error sending welcome SMS: $e');
       // Don't throw the error - we don't want signup to fail if SMS fails
+    }
+  }
+
+  // Check if email already exists in the database
+  Future<bool> isEmailExists(String email) async {
+    try {
+      final response = await _client
+          .from('profiles')
+          .select('id')
+          .eq('email', email.toLowerCase().trim())
+          .limit(1);
+
+      return (response as List).isNotEmpty;
+    } catch (e) {
+      print('Error checking email existence: $e');
+      return false; // Assume email doesn't exist on error to allow process to continue
+    }
+  }
+
+  // Check if phone number already exists in the database
+  Future<bool> isPhoneNumberExists(String phoneNumber) async {
+    try {
+      final formattedNumber = phoneNumber.replaceAll(' ', '');
+      final response = await _client
+          .from('profiles')
+          .select('id')
+          .eq('phone_number', formattedNumber)
+          .limit(1);
+
+      return (response as List).isNotEmpty;
+    } catch (e) {
+      print('Error checking phone number existence: $e');
+      return false; // Assume phone doesn't exist on error to allow process to continue
     }
   }
 

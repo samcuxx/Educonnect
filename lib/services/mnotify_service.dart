@@ -6,6 +6,10 @@ class MNotifyService {
   final String _apiKey;
   final String _baseUrl = 'https://apps.mnotify.net/smsapi';
 
+  // Store OTP codes temporarily (in production, use secure storage or backend)
+  final Map<String, String> _otpCodes = {};
+  final Map<String, DateTime> _otpExpiry = {};
+
   MNotifyService({required String apiKey}) : _apiKey = apiKey;
 
   /// Send SMS to a single recipient
@@ -120,6 +124,111 @@ class MNotifyService {
     } catch (e) {
       print('Error sending bulk SMS: $e');
       return false;
+    }
+  }
+
+  /// Generate and send OTP to phone number
+  Future<bool> sendOtp({required String phoneNumber, String? sender}) async {
+    try {
+      // Generate 6-digit OTP
+      final otp = _generateOtp();
+
+      // Format phone number
+      final formattedNumber = phoneNumber.replaceAll(' ', '');
+
+      // Store OTP with 5-minute expiry
+      _otpCodes[formattedNumber] = otp;
+      _otpExpiry[formattedNumber] = DateTime.now().add(
+        const Duration(minutes: 5),
+      );
+
+      // Create OTP message
+      final message =
+          'Your EduConnect verification code is: $otp. This code will expire in 5 minutes. Do not share this code with anyone.';
+
+      // Send SMS
+      final success = await sendSms(
+        recipient: formattedNumber,
+        message: message,
+        sender: sender,
+      );
+
+      if (success) {
+        print('OTP sent successfully to $formattedNumber');
+      } else {
+        // Clean up on failure
+        _otpCodes.remove(formattedNumber);
+        _otpExpiry.remove(formattedNumber);
+      }
+
+      return success;
+    } catch (e) {
+      print('Error sending OTP: $e');
+      return false;
+    }
+  }
+
+  /// Verify OTP for phone number
+  bool verifyOtp({required String phoneNumber, required String otp}) {
+    try {
+      final formattedNumber = phoneNumber.replaceAll(' ', '');
+
+      // Check if OTP exists
+      if (!_otpCodes.containsKey(formattedNumber)) {
+        print('No OTP found for number: $formattedNumber');
+        return false;
+      }
+
+      // Check if OTP is expired
+      final expiryTime = _otpExpiry[formattedNumber];
+      if (expiryTime == null || DateTime.now().isAfter(expiryTime)) {
+        print('OTP expired for number: $formattedNumber');
+        // Clean up expired OTP
+        _otpCodes.remove(formattedNumber);
+        _otpExpiry.remove(formattedNumber);
+        return false;
+      }
+
+      // Verify OTP
+      final storedOtp = _otpCodes[formattedNumber];
+      final isValid = storedOtp == otp;
+
+      if (isValid) {
+        print('OTP verified successfully for: $formattedNumber');
+        // Clean up after successful verification
+        _otpCodes.remove(formattedNumber);
+        _otpExpiry.remove(formattedNumber);
+      } else {
+        print('Invalid OTP for number: $formattedNumber');
+      }
+
+      return isValid;
+    } catch (e) {
+      print('Error verifying OTP: $e');
+      return false;
+    }
+  }
+
+  /// Generate 6-digit OTP
+  String _generateOtp() {
+    final random = DateTime.now().millisecondsSinceEpoch;
+    return (100000 + (random % 900000)).toString();
+  }
+
+  /// Clear expired OTPs (call periodically)
+  void clearExpiredOtps() {
+    final now = DateTime.now();
+    final expiredNumbers = <String>[];
+
+    _otpExpiry.forEach((number, expiry) {
+      if (now.isAfter(expiry)) {
+        expiredNumbers.add(number);
+      }
+    });
+
+    for (final number in expiredNumbers) {
+      _otpCodes.remove(number);
+      _otpExpiry.remove(number);
     }
   }
 }

@@ -5,6 +5,7 @@ import '../../widgets/custom_text_field.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/gradient_container.dart';
 import '../../widgets/theme_toggle_button.dart';
+import '../../widgets/otp_verification_dialog.dart';
 import '../../utils/app_theme.dart';
 import '../../screens/dashboard/dashboard_screen.dart';
 
@@ -27,6 +28,11 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
   final _phoneNumberController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isPhoneVerified = false;
+  bool _isCheckingEmail = false;
+  bool _isCheckingPhone = false;
+  String? _emailError;
+  String? _phoneError;
 
   @override
   void dispose() {
@@ -59,8 +65,179 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
     Navigator.pop(context);
   }
 
+  Future<void> _checkEmailAvailability(String email) async {
+    if (email.isEmpty ||
+        !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      setState(() {
+        _emailError = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingEmail = true;
+      _emailError = null;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final exists = await authProvider.checkEmailExists(email);
+
+      if (mounted) {
+        setState(() {
+          _emailError =
+              exists
+                  ? 'This email is already registered. Please use a different email or try logging in.'
+                  : null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _emailError = 'Unable to verify email. Please try again.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingEmail = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _checkPhoneAvailability(String phone) async {
+    if (phone.isEmpty) {
+      setState(() {
+        _phoneError = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingPhone = true;
+      _phoneError = null;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final exists = await authProvider.checkPhoneExists(phone);
+
+      if (mounted) {
+        setState(() {
+          _phoneError =
+              exists
+                  ? 'This phone number is already registered. Please use a different number.'
+                  : null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _phoneError = 'Unable to verify phone number. Please try again.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingPhone = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _verifyPhoneNumber() async {
+    final phoneNumber = _phoneNumberController.text.trim();
+    if (phoneNumber.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a phone number first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_phoneError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_phoneError!), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    // Send OTP
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final otpSent = await authProvider.sendOtp(phoneNumber);
+
+    if (!otpSent) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to send verification code. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show OTP verification dialog
+    final verified = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => OtpVerificationDialog(
+            phoneNumber: phoneNumber,
+            onVerificationComplete: () {
+              setState(() {
+                _isPhoneVerified = true;
+              });
+            },
+          ),
+    );
+
+    if (verified == true) {
+      setState(() {
+        _isPhoneVerified = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone number verified successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
+      // Check if phone number is provided and verified
+      final phoneNumber = _phoneNumberController.text.trim();
+      if (phoneNumber.isNotEmpty && !_isPhoneVerified) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Please verify your phone number before creating account',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Check for email and phone errors
+      if (_emailError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_emailError!), backgroundColor: Colors.red),
+        );
+        return;
+      }
+
+      if (_phoneError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_phoneError!), backgroundColor: Colors.red),
+        );
+        return;
+      }
+
       await context.read<AuthProvider>().signUpStudent(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -68,10 +245,7 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
         studentNumber: _studentNumberController.text.trim(),
         institution: _institutionController.text.trim(),
         level: _levelController.text.trim(),
-        phoneNumber:
-            _phoneNumberController.text.trim().isNotEmpty
-                ? _phoneNumberController.text.trim()
-                : null,
+        phoneNumber: phoneNumber.isNotEmpty ? phoneNumber : null,
       );
 
       // If signup is successful, navigate to dashboard
@@ -248,23 +422,82 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                 ),
 
                                 // Email
-                                CustomTextField(
-                                  controller: _emailController,
-                                  labelText: 'Email',
-                                  hintText: 'Enter your email',
-                                  keyboardType: TextInputType.emailAddress,
-                                  prefixIcon: const Icon(Icons.email),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter your email';
-                                    }
-                                    if (!RegExp(
-                                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                                    ).hasMatch(value)) {
-                                      return 'Please enter a valid email';
-                                    }
-                                    return null;
-                                  },
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    CustomTextField(
+                                      controller: _emailController,
+                                      labelText: 'Email',
+                                      hintText: 'Enter your email',
+                                      keyboardType: TextInputType.emailAddress,
+                                      prefixIcon: const Icon(Icons.email),
+                                      suffixIcon:
+                                          _isCheckingEmail
+                                              ? const SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child: Padding(
+                                                  padding: EdgeInsets.all(12.0),
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                ),
+                                              )
+                                              : _emailError != null
+                                              ? const Icon(
+                                                Icons.error,
+                                                color: Colors.red,
+                                              )
+                                              : _emailController.text.isNotEmpty
+                                              ? const Icon(
+                                                Icons.check_circle,
+                                                color: Colors.green,
+                                              )
+                                              : null,
+                                      onChanged: (value) {
+                                        // Debounce email checking
+                                        Future.delayed(
+                                          const Duration(milliseconds: 1000),
+                                          () {
+                                            if (_emailController.text ==
+                                                    value &&
+                                                value.isNotEmpty) {
+                                              _checkEmailAvailability(value);
+                                            }
+                                          },
+                                        );
+                                      },
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please enter your email';
+                                        }
+                                        if (!RegExp(
+                                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                        ).hasMatch(value)) {
+                                          return 'Please enter a valid email';
+                                        }
+                                        if (_emailError != null) {
+                                          return _emailError;
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    if (_emailError != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 8.0,
+                                          left: 12.0,
+                                        ),
+                                        child: Text(
+                                          _emailError!,
+                                          style: const TextStyle(
+                                            color: Colors.red,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
 
                                 // Password
@@ -362,25 +595,165 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                 ),
 
                                 // Phone Number
-                                CustomTextField(
-                                  controller: _phoneNumberController,
-                                  labelText:
-                                      'Phone Number (for SMS notifications)',
-                                  hintText:
-                                      'Enter your phone number (optional)',
-                                  keyboardType: TextInputType.phone,
-                                  prefixIcon: const Icon(Icons.phone),
-                                  validator: (value) {
-                                    if (value != null && value.isNotEmpty) {
-                                      // Basic phone number validation
-                                      if (!RegExp(
-                                        r'^\+?[0-9]{10,15}$',
-                                      ).hasMatch(value)) {
-                                        return 'Please enter a valid phone number';
-                                      }
-                                    }
-                                    return null;
-                                  },
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: CustomTextField(
+                                            controller: _phoneNumberController,
+                                            labelText:
+                                                'Phone Number (for SMS notifications)',
+                                            hintText:
+                                                'Enter your phone number (optional)',
+                                            keyboardType: TextInputType.phone,
+                                            prefixIcon: const Icon(Icons.phone),
+                                            suffixIcon:
+                                                _isCheckingPhone
+                                                    ? const SizedBox(
+                                                      width: 20,
+                                                      height: 20,
+                                                      child: Padding(
+                                                        padding: EdgeInsets.all(
+                                                          12.0,
+                                                        ),
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                            ),
+                                                      ),
+                                                    )
+                                                    : _phoneError != null
+                                                    ? const Icon(
+                                                      Icons.error,
+                                                      color: Colors.red,
+                                                    )
+                                                    : _isPhoneVerified
+                                                    ? const Icon(
+                                                      Icons.verified,
+                                                      color: Colors.green,
+                                                    )
+                                                    : null,
+                                            onChanged: (value) {
+                                              // Debounce phone checking
+                                              Future.delayed(
+                                                const Duration(
+                                                  milliseconds: 1000,
+                                                ),
+                                                () {
+                                                  if (_phoneNumberController
+                                                              .text ==
+                                                          value &&
+                                                      value.isNotEmpty) {
+                                                    _checkPhoneAvailability(
+                                                      value,
+                                                    );
+                                                  }
+                                                },
+                                              );
+                                              // Reset verification status when phone changes
+                                              if (_isPhoneVerified) {
+                                                setState(() {
+                                                  _isPhoneVerified = false;
+                                                });
+                                              }
+                                            },
+                                            validator: (value) {
+                                              if (value != null &&
+                                                  value.isNotEmpty) {
+                                                // Basic phone number validation
+                                                if (!RegExp(
+                                                  r'^\+?[0-9]{10,15}$',
+                                                ).hasMatch(value)) {
+                                                  return 'Please enter a valid phone number';
+                                                }
+                                                if (_phoneError != null) {
+                                                  return _phoneError;
+                                                }
+                                              }
+                                              return null;
+                                            },
+                                          ),
+                                        ),
+                                        if (_phoneNumberController
+                                                .text
+                                                .isNotEmpty &&
+                                            _phoneError == null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              left: 8.0,
+                                            ),
+                                            child: Container(
+                                              height: 50,
+                                              decoration: BoxDecoration(
+                                                gradient:
+                                                    _isPhoneVerified
+                                                        ? LinearGradient(
+                                                          colors: [
+                                                            Colors
+                                                                .green
+                                                                .shade400,
+                                                            Colors
+                                                                .green
+                                                                .shade600,
+                                                          ],
+                                                        )
+                                                        : AppTheme.primaryGradient(
+                                                          isDark,
+                                                        ),
+                                                borderRadius:
+                                                    BorderRadius.circular(25),
+                                              ),
+                                              child: Material(
+                                                color: Colors.transparent,
+                                                child: InkWell(
+                                                  borderRadius:
+                                                      BorderRadius.circular(25),
+                                                  onTap:
+                                                      _isPhoneVerified
+                                                          ? null
+                                                          : _verifyPhoneNumber,
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 16.0,
+                                                        ),
+                                                    child: Center(
+                                                      child: Text(
+                                                        _isPhoneVerified
+                                                            ? 'Verified'
+                                                            : 'Verify',
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          fontSize: 14,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    if (_phoneError != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 8.0,
+                                          left: 12.0,
+                                        ),
+                                        child: Text(
+                                          _phoneError!,
+                                          style: const TextStyle(
+                                            color: Colors.red,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ],
                             ),

@@ -10,13 +10,16 @@ class AuthRouteObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
-    _checkAuthState(route);
+    // Don't check auth state for dialog routes (modals)
+    if (route is! DialogRoute) {
+      _checkAuthState(route);
+    }
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
-    if (newRoute != null) {
+    if (newRoute != null && newRoute is! DialogRoute) {
       _checkAuthState(newRoute);
     }
   }
@@ -41,14 +44,22 @@ class AuthRouteObserver extends NavigatorObserver {
     }
 
     // If user is not authenticated, redirect to login
+    // But only for routes that actually require authentication
     if (authProvider.status != AuthStatus.authenticated) {
-      // Use a post-frame callback to avoid build conflicts
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (route.navigator?.context != null) {
-          print('User not authenticated, redirecting to login screen');
-          route.navigator?.pushNamedAndRemoveUntil('/login', (route) => false);
-        }
-      });
+      // Check if this route actually requires authentication
+      final settings = route.settings;
+      if (settings.requiresAuth) {
+        // Use a post-frame callback to avoid build conflicts
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (route.navigator?.context != null) {
+            print('User not authenticated, redirecting to login screen');
+            route.navigator?.pushNamedAndRemoveUntil(
+              '/login',
+              (route) => false,
+            );
+          }
+        });
+      }
     }
   }
 
@@ -61,6 +72,7 @@ class AuthRouteObserver extends NavigatorObserver {
       // Exempt all auth-related routes
       if (settings.name == '/login' ||
           settings.name == '/forgot-password' ||
+          settings.name == '/otp-verification' ||
           settings.name!.startsWith('/signup')) {
         return true;
       }
@@ -86,7 +98,9 @@ extension RouteSettingsExtension on RouteSettings {
     if (name == null) return true;
 
     // Exempt auth-related routes
-    if (name == '/login' || name == '/forgot-password') {
+    if (name == '/login' ||
+        name == '/forgot-password' ||
+        name == '/otp-verification') {
       return false;
     }
 

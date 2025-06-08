@@ -11,6 +11,7 @@ class CustomTextField extends StatelessWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final bool enabled;
+  final void Function(String)? onChanged;
 
   const CustomTextField({
     Key? key,
@@ -23,15 +24,15 @@ class CustomTextField extends StatelessWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.enabled = true,
+    this.onChanged,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark 
-        ? AppTheme.darkPrimaryStart 
-        : AppTheme.lightPrimaryStart;
-    
+    final primaryColor =
+        isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
@@ -40,41 +41,49 @@ class CustomTextField extends StatelessWidget {
         keyboardType: keyboardType,
         validator: validator,
         enabled: enabled,
+        onChanged: onChanged,
         style: TextStyle(
           fontWeight: FontWeight.w400,
-          color: enabled 
-              ? (isDark ? Colors.white : Colors.black)
-              : (isDark ? Colors.white60 : Colors.black45),
+          color:
+              enabled
+                  ? (isDark ? Colors.white : Colors.black)
+                  : (isDark ? Colors.white60 : Colors.black45),
         ),
         decoration: InputDecoration(
           labelText: labelText,
           hintText: hintText,
-          prefixIcon: prefixIcon != null 
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: prefixIcon,
-                )
-              : null,
+          prefixIcon:
+              prefixIcon != null
+                  ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: prefixIcon,
+                  )
+                  : null,
           suffixIcon: suffixIcon,
           filled: true,
-          fillColor: enabled
-              ? (isDark ? Colors.white.withOpacity(0.1) : Colors.white)
-              : (isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100]),
+          fillColor:
+              enabled
+                  ? (isDark ? Colors.white.withOpacity(0.1) : Colors.white)
+                  : (isDark
+                      ? Colors.white.withOpacity(0.05)
+                      : Colors.grey[100]),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28.0),
             borderSide: BorderSide(
-              color: isDark 
-                  ? Colors.grey.shade800.withOpacity(0.3)
-                  : Colors.grey.shade300.withOpacity(0.5),
+              color:
+                  isDark
+                      ? Colors.grey.shade800.withOpacity(0.3)
+                      : Colors.grey.shade300.withOpacity(0.5),
               width: 0.8,
             ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28.0),
             borderSide: BorderSide(
-              color: isDark 
-                  ? Colors.grey.shade800.withOpacity(0.3)
-                  : Colors.grey.shade300.withOpacity(0.5),
+              color:
+                  isDark
+                      ? Colors.grey.shade800.withOpacity(0.3)
+                      : Colors.grey.shade300.withOpacity(0.5),
               width: 0.8,
             ),
           ),
@@ -88,18 +97,20 @@ class CustomTextField extends StatelessWidget {
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28.0),
             borderSide: BorderSide(
-              color: isDark
-                  ? AppTheme.darkSecondaryStart.withOpacity(0.6)
-                  : AppTheme.lightSecondaryStart.withOpacity(0.6),
+              color:
+                  isDark
+                      ? AppTheme.darkSecondaryStart.withOpacity(0.6)
+                      : AppTheme.lightSecondaryStart.withOpacity(0.6),
               width: 0.8,
             ),
           ),
           focusedErrorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28.0),
             borderSide: BorderSide(
-              color: isDark
-                  ? AppTheme.darkSecondaryStart.withOpacity(0.7)
-                  : AppTheme.lightSecondaryStart.withOpacity(0.7),
+              color:
+                  isDark
+                      ? AppTheme.darkSecondaryStart.withOpacity(0.7)
+                      : AppTheme.lightSecondaryStart.withOpacity(0.7),
               width: 1.2,
             ),
           ),
@@ -108,15 +119,17 @@ class CustomTextField extends StatelessWidget {
             horizontal: 22.0,
           ),
           labelStyle: TextStyle(
-            color: isDark
-                ? AppTheme.darkTextSecondary.withOpacity(0.8)
-                : AppTheme.lightTextSecondary.withOpacity(0.8),
+            color:
+                isDark
+                    ? AppTheme.darkTextSecondary.withOpacity(0.8)
+                    : AppTheme.lightTextSecondary.withOpacity(0.8),
             fontWeight: FontWeight.w400,
           ),
           hintStyle: TextStyle(
-            color: isDark
-                ? AppTheme.darkTextSecondary.withOpacity(0.5)
-                : AppTheme.lightTextSecondary.withOpacity(0.5),
+            color:
+                isDark
+                    ? AppTheme.darkTextSecondary.withOpacity(0.5)
+                    : AppTheme.lightTextSecondary.withOpacity(0.5),
             fontWeight: FontWeight.w300,
           ),
           disabledBorder: OutlineInputBorder(
@@ -129,4 +142,4 @@ class CustomTextField extends StatelessWidget {
       ),
     );
   }
-} 
+}
