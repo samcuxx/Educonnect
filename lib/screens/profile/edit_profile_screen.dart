@@ -17,16 +17,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
-  
+  final _phoneNumberController = TextEditingController();
+
   // Student-specific controllers
   final _studentNumberController = TextEditingController();
   final _institutionController = TextEditingController();
   final _levelController = TextEditingController();
-  
+
   // Lecturer-specific controllers
   final _staffIdController = TextEditingController();
   final _departmentController = TextEditingController();
-  
+
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -40,6 +41,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
+    _phoneNumberController.dispose();
     _studentNumberController.dispose();
     _institutionController.dispose();
     _levelController.dispose();
@@ -54,6 +56,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     _fullNameController.text = user.fullName;
     _emailController.text = user.email;
+    _phoneNumberController.text = user.phoneNumber ?? '';
 
     if (user is Student) {
       _studentNumberController.text = user.studentNumber;
@@ -78,18 +81,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final user = authProvider.currentUser;
       if (user == null) return;
 
+      final phoneNumber =
+          _phoneNumberController.text.trim().isNotEmpty
+              ? _phoneNumberController.text.trim()
+              : null;
+
       if (user is Student) {
         await authProvider.updateStudentProfile(
           fullName: _fullNameController.text.trim(),
           studentNumber: _studentNumberController.text.trim(),
           institution: _institutionController.text.trim(),
           level: _levelController.text.trim(),
+          phoneNumber: phoneNumber,
         );
       } else if (user is Lecturer) {
         await authProvider.updateLecturerProfile(
           fullName: _fullNameController.text.trim(),
           staffId: _staffIdController.text.trim(),
           department: _departmentController.text.trim(),
+          phoneNumber: phoneNumber,
         );
       }
 
@@ -115,10 +125,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final isLecturer = Provider.of<AuthProvider>(context).isLecturer;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Edit Profile'), elevation: 0),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -133,26 +140,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: isLecturer
-                          ? AppTheme.secondaryGradient(isDark)
-                          : AppTheme.primaryGradient(isDark),
+                      gradient:
+                          isLecturer
+                              ? AppTheme.secondaryGradient(isDark)
+                              : AppTheme.primaryGradient(isDark),
                     ),
                     child: CircleAvatar(
                       radius: 50,
-                      backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                      backgroundColor:
+                          isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
                       child: Icon(
                         Icons.person,
                         size: 50,
-                        color: isLecturer
-                            ? (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart)
-                            : (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart),
+                        color:
+                            isLecturer
+                                ? (isDark
+                                    ? AppTheme.darkSecondaryStart
+                                    : AppTheme.lightSecondaryStart)
+                                : (isDark
+                                    ? AppTheme.darkPrimaryStart
+                                    : AppTheme.lightPrimaryStart),
                       ),
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Common fields
                 CustomTextField(
                   controller: _fullNameController,
@@ -164,17 +178,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 CustomTextField(
                   controller: _emailController,
                   labelText: 'Email',
                   enabled: false, // Email cannot be changed
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
+                CustomTextField(
+                  controller: _phoneNumberController,
+                  labelText: 'Phone Number (for SMS notifications)',
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty) {
+                      // Basic phone number validation - can be improved
+                      if (!RegExp(r'^\+?[0-9]{10,15}$').hasMatch(value)) {
+                        return 'Please enter a valid phone number';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
                 // Role-specific fields
                 if (isLecturer) ...[
                   CustomTextField(
@@ -187,9 +218,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       return null;
                     },
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   CustomTextField(
                     controller: _departmentController,
                     labelText: 'Department',
@@ -211,9 +242,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       return null;
                     },
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   CustomTextField(
                     controller: _institutionController,
                     labelText: 'Institution',
@@ -224,9 +255,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       return null;
                     },
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   CustomTextField(
                     controller: _levelController,
                     labelText: 'Level',
@@ -238,22 +269,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     },
                   ),
                 ],
-                
+
                 const SizedBox(height: 24),
-                
+
                 if (_errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(color: Colors.red, fontSize: 14),
                       textAlign: TextAlign.center,
                     ),
                   ),
-                
+
                 GradientButton(
                   text: 'Save Changes',
                   onPressed: _updateProfile,
@@ -267,4 +295,4 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-} 
+}

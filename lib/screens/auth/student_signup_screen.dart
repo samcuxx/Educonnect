@@ -24,6 +24,7 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
   final _studentNumberController = TextEditingController();
   final _institutionController = TextEditingController();
   final _levelController = TextEditingController();
+  final _phoneNumberController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -36,6 +37,7 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
     _studentNumberController.dispose();
     _institutionController.dispose();
     _levelController.dispose();
+    _phoneNumberController.dispose();
     super.dispose();
   }
 
@@ -60,33 +62,44 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
       await context.read<AuthProvider>().signUpStudent(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-            fullName: _fullNameController.text.trim(),
-            studentNumber: _studentNumberController.text.trim(),
-            institution: _institutionController.text.trim(),
-            level: _levelController.text.trim(),
-          );
-      
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        fullName: _fullNameController.text.trim(),
+        studentNumber: _studentNumberController.text.trim(),
+        institution: _institutionController.text.trim(),
+        level: _levelController.text.trim(),
+        phoneNumber:
+            _phoneNumberController.text.trim().isNotEmpty
+                ? _phoneNumberController.text.trim()
+                : null,
+      );
+
       // If signup is successful, navigate to dashboard
       if (!mounted) return;
       if (context.read<AuthProvider>().status == AuthStatus.authenticated) {
         // Navigate to dashboard with replacement (removes previous screens from stack)
         Navigator.of(context).pushAndRemoveUntil(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const DashboardScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            pageBuilder:
+                (context, animation, secondaryAnimation) =>
+                    const DashboardScreen(),
+            transitionsBuilder: (
+              context,
+              animation,
+              secondaryAnimation,
+              child,
+            ) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeOutQuint;
-              
-              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+              var tween = Tween(
+                begin: begin,
+                end: end,
+              ).chain(CurveTween(curve: curve));
               var offsetAnimation = animation.drive(tween);
-              
-              return SlideTransition(
-                position: offsetAnimation,
-                child: child,
-              );
+
+              return SlideTransition(position: offsetAnimation, child: child);
             },
             transitionDuration: const Duration(milliseconds: 500),
           ),
@@ -100,7 +113,7 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       body: Stack(
         children: [
@@ -110,26 +123,30 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: isDark
-                    ? [
-                        AppTheme.darkBackground,
-                        AppTheme.darkBackground.withOpacity(0.8),
-                      ]
-                    : [
-                        AppTheme.lightPrimaryStart.withOpacity(0.1),
-                        AppTheme.lightPrimaryEnd.withOpacity(0.05),
-                      ],
+                colors:
+                    isDark
+                        ? [
+                          AppTheme.darkBackground,
+                          AppTheme.darkBackground.withOpacity(0.8),
+                        ]
+                        : [
+                          AppTheme.lightPrimaryStart.withOpacity(0.1),
+                          AppTheme.lightPrimaryEnd.withOpacity(0.05),
+                        ],
               ),
             ),
           ),
-          
+
           // Content
           SafeArea(
             child: Column(
               children: [
                 // Top bar with back button and theme toggle
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 16.0,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -139,9 +156,10 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isDark 
-                                ? AppTheme.darkSurface
-                                : AppTheme.lightSurface,
+                            color:
+                                isDark
+                                    ? AppTheme.darkSurface
+                                    : AppTheme.lightSurface,
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.1),
@@ -160,7 +178,7 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                     ],
                   ),
                 ),
-                
+
                 // Scrollable content
                 Expanded(
                   child: SingleChildScrollView(
@@ -175,32 +193,40 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               ShaderMask(
-                                shaderCallback: (bounds) => AppTheme.primaryGradient(isDark).createShader(bounds),
+                                shaderCallback:
+                                    (bounds) => AppTheme.primaryGradient(
+                                      isDark,
+                                    ).createShader(bounds),
                                 child: Text(
                                   'Student Account',
-                                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                     letterSpacing: 0.8,
                                   ),
                                 ),
                               ),
-                              
+
                               const SizedBox(height: 8),
-                              
+
                               Text(
                                 'Please fill in your details',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: isDark 
-                                      ? AppTheme.darkTextSecondary
-                                      : AppTheme.lightTextSecondary,
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.titleMedium?.copyWith(
+                                  color:
+                                      isDark
+                                          ? AppTheme.darkTextSecondary
+                                          : AppTheme.lightTextSecondary,
                                 ),
                               ),
                             ],
                           ),
-                          
+
                           const SizedBox(height: 24),
-                          
+
                           // Form fields in a gradient container
                           GradientContainer(
                             padding: const EdgeInsets.all(24),
@@ -220,7 +246,7 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                     return null;
                                   },
                                 ),
-                                
+
                                 // Email
                                 CustomTextField(
                                   controller: _emailController,
@@ -232,13 +258,15 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                     if (value == null || value.isEmpty) {
                                       return 'Please enter your email';
                                     }
-                                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                                    if (!RegExp(
+                                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                    ).hasMatch(value)) {
                                       return 'Please enter a valid email';
                                     }
                                     return null;
                                   },
                                 ),
-                                
+
                                 // Password
                                 CustomTextField(
                                   controller: _passwordController,
@@ -248,7 +276,9 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                   prefixIcon: const Icon(Icons.lock),
                                   suffixIcon: IconButton(
                                     icon: Icon(
-                                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                      _obscurePassword
+                                          ? Icons.visibility
+                                          : Icons.visibility_off,
                                     ),
                                     onPressed: _togglePasswordVisibility,
                                   ),
@@ -262,7 +292,7 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                     return null;
                                   },
                                 ),
-                                
+
                                 // Confirm Password
                                 CustomTextField(
                                   controller: _confirmPasswordController,
@@ -272,7 +302,9 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                   prefixIcon: const Icon(Icons.lock_outline),
                                   suffixIcon: IconButton(
                                     icon: Icon(
-                                      _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                                      _obscureConfirmPassword
+                                          ? Icons.visibility
+                                          : Icons.visibility_off,
                                     ),
                                     onPressed: _toggleConfirmPasswordVisibility,
                                   ),
@@ -286,7 +318,7 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                     return null;
                                   },
                                 ),
-                                
+
                                 // Student Number
                                 CustomTextField(
                                   controller: _studentNumberController,
@@ -300,7 +332,7 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                     return null;
                                   },
                                 ),
-                                
+
                                 // Institution
                                 CustomTextField(
                                   controller: _institutionController,
@@ -314,7 +346,7 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                     return null;
                                   },
                                 ),
-                                
+
                                 // Level/Year
                                 CustomTextField(
                                   controller: _levelController,
@@ -328,27 +360,55 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                     return null;
                                   },
                                 ),
+
+                                // Phone Number
+                                CustomTextField(
+                                  controller: _phoneNumberController,
+                                  labelText:
+                                      'Phone Number (for SMS notifications)',
+                                  hintText:
+                                      'Enter your phone number (optional)',
+                                  keyboardType: TextInputType.phone,
+                                  prefixIcon: const Icon(Icons.phone),
+                                  validator: (value) {
+                                    if (value != null && value.isNotEmpty) {
+                                      // Basic phone number validation
+                                      if (!RegExp(
+                                        r'^\+?[0-9]{10,15}$',
+                                      ).hasMatch(value)) {
+                                        return 'Please enter a valid phone number';
+                                      }
+                                    }
+                                    return null;
+                                  },
+                                ),
                               ],
                             ),
                           ),
-                          
+
                           const SizedBox(height: 16),
-                          
+
                           // Error message
                           if (authProvider.errorMessage != null)
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
                               margin: const EdgeInsets.only(bottom: 16),
                               decoration: BoxDecoration(
-                                color: isDark
-                                    ? AppTheme.darkSecondaryStart.withOpacity(0.2)
-                                    : AppTheme.lightSecondaryStart.withOpacity(0.1),
+                                color:
+                                    isDark
+                                        ? AppTheme.darkSecondaryStart
+                                            .withOpacity(0.2)
+                                        : AppTheme.lightSecondaryStart
+                                            .withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: isDark
-                                      ? AppTheme.darkSecondaryStart
-                                      : AppTheme.lightSecondaryStart,
+                                  color:
+                                      isDark
+                                          ? AppTheme.darkSecondaryStart
+                                          : AppTheme.lightSecondaryStart,
                                 ),
                               ),
                               child: Row(
@@ -357,22 +417,27 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(4),
                                     decoration: BoxDecoration(
-                                      color: isDark
-                                          ? AppTheme.darkSecondaryStart
-                                          : AppTheme.lightSecondaryStart,
+                                      color:
+                                          isDark
+                                              ? AppTheme.darkSecondaryStart
+                                              : AppTheme.lightSecondaryStart,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(Icons.error_outline,
-                                        color: Colors.white, size: 20),
+                                    child: const Icon(
+                                      Icons.error_outline,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
                                       authProvider.errorMessage!,
                                       style: TextStyle(
-                                        color: isDark
-                                            ? AppTheme.darkSecondaryEnd
-                                            : AppTheme.lightSecondaryStart,
+                                        color:
+                                            isDark
+                                                ? AppTheme.darkSecondaryEnd
+                                                : AppTheme.lightSecondaryStart,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -380,16 +445,17 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                 ],
                               ),
                             ),
-                          
+
                           const SizedBox(height: 24),
-                          
+
                           // Sign up button
                           GradientButton(
                             text: 'Create Account',
                             onPressed: _signUp,
-                            isLoading: authProvider.status == AuthStatus.loading,
+                            isLoading:
+                                authProvider.status == AuthStatus.loading,
                           ),
-                          
+
                           const SizedBox(height: 24),
                         ],
                       ),
@@ -403,4 +469,4 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
       ),
     );
   }
-} 
+}

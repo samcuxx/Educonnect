@@ -4,12 +4,14 @@ abstract class User {
   final String fullName;
   final String email;
   final String userType; // 'student' or 'lecturer'
+  final String? phoneNumber;
 
   User({
     required this.id,
     required this.fullName,
     required this.email,
     required this.userType,
+    this.phoneNumber,
   });
 }
 
@@ -26,6 +28,7 @@ class Student extends User {
     required this.studentNumber,
     required this.institution,
     required this.level,
+    super.phoneNumber,
   }) : super(userType: 'student');
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -36,6 +39,7 @@ class Student extends User {
       studentNumber: json['student_number'],
       institution: json['institution'],
       level: json['level'],
+      phoneNumber: json['phone_number'],
     );
   }
 
@@ -48,6 +52,7 @@ class Student extends User {
       'student_number': studentNumber,
       'institution': institution,
       'level': level,
+      'phone_number': phoneNumber,
     };
   }
 }
@@ -63,6 +68,7 @@ class Lecturer extends User {
     required super.email,
     required this.staffId,
     required this.department,
+    super.phoneNumber,
   }) : super(userType: 'lecturer');
 
   factory Lecturer.fromJson(Map<String, dynamic> json) {
@@ -72,6 +78,7 @@ class Lecturer extends User {
       email: json['email'],
       staffId: json['staff_id'],
       department: json['department'],
+      phoneNumber: json['phone_number'],
     );
   }
 
@@ -83,6 +90,7 @@ class Lecturer extends User {
       'user_type': userType,
       'staff_id': staffId,
       'department': department,
+      'phone_number': phoneNumber,
     };
   }
-} 
+}
