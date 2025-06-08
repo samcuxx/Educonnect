@@ -17,21 +17,24 @@ class LecturerDashboard extends StatefulWidget {
 
 class _LecturerDashboardState extends State<LecturerDashboard> {
   bool _isLoading = false;
-  
+
   @override
   void initState() {
     super.initState();
     // Load classes when the dashboard is opened
     _loadClasses();
   }
-  
+
   Future<void> _loadClasses() async {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
-      await Provider.of<ClassProvider>(context, listen: false).loadLecturerClasses();
+      await Provider.of<ClassProvider>(
+        context,
+        listen: false,
+      ).loadLecturerClasses();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -62,10 +65,23 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
+            onPressed: () async {
               // Get the ClassProvider to reset it
-              final classProvider = Provider.of<ClassProvider>(context, listen: false);
-              authProvider.signOut(resetClassProvider: () => classProvider.reset());
+              final classProvider = Provider.of<ClassProvider>(
+                context,
+                listen: false,
+              );
+              await authProvider.signOut(
+                resetClassProvider: () => classProvider.reset(),
+              );
+
+              if (context.mounted &&
+                  authProvider.status == AuthStatus.unauthenticated) {
+                // Navigate to login screen and clear the navigation stack
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/login', (route) => false);
+              }
             },
           ),
         ],
@@ -112,7 +128,7 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // My Classes section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -125,7 +141,9 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                     onPressed: () async {
                       await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const CreateClassScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const CreateClassScreen(),
+                        ),
                       );
                       // Refresh classes after returning from create screen
                       _loadClasses();
@@ -139,70 +157,77 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               // Classes list or empty state
               Expanded(
-                child: _isLoading 
-                  ? const Center(child: CircularProgressIndicator())
-                  : classes.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.school_outlined,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'No classes created yet',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : classes.isEmpty
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.school_outlined,
+                                size: 64,
                                 color: Colors.grey,
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Create your first class by tapping the + button',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              onPressed: () {
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No classes created yet',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Create your first class by tapping the + button',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) =>
+                                              const CreateClassScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.add),
+                                label: const Text('Create Class'),
+                              ),
+                            ],
+                          ),
+                        )
+                        : ListView.builder(
+                          itemCount: classes.length,
+                          itemBuilder: (context, index) {
+                            return ClassCard(
+                              classModel: classes[index],
+                              showCode:
+                                  true, // Show the class code for lecturers
+                              onTap: () {
+                                // Navigate to class details screen
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const CreateClassScreen()),
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => ClassDetailsScreen(
+                                          classModel: classes[index],
+                                        ),
+                                  ),
                                 );
                               },
-                              icon: const Icon(Icons.add),
-                              label: const Text('Create Class'),
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: classes.length,
-                        itemBuilder: (context, index) {
-                          return ClassCard(
-                            classModel: classes[index],
-                            showCode: true, // Show the class code for lecturers
-                            onTap: () {
-                              // Navigate to class details screen
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ClassDetailsScreen(
-                                    classModel: classes[index],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
               ),
             ],
           ),
@@ -210,4 +235,4 @@ class _LecturerDashboardState extends State<LecturerDashboard> {
       ),
     );
   }
-} 
+}

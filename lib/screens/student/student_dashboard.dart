@@ -17,21 +17,24 @@ class StudentDashboard extends StatefulWidget {
 
 class _StudentDashboardState extends State<StudentDashboard> {
   bool _isLoading = false;
-  
+
   @override
   void initState() {
     super.initState();
     // Load classes when the dashboard is opened
     _loadClasses();
   }
-  
+
   Future<void> _loadClasses() async {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
-      await Provider.of<ClassProvider>(context, listen: false).loadStudentClasses();
+      await Provider.of<ClassProvider>(
+        context,
+        listen: false,
+      ).loadStudentClasses();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -62,10 +65,23 @@ class _StudentDashboardState extends State<StudentDashboard> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
+            onPressed: () async {
               // Get the ClassProvider to reset it
-              final classProvider = Provider.of<ClassProvider>(context, listen: false);
-              authProvider.signOut(resetClassProvider: () => classProvider.reset());
+              final classProvider = Provider.of<ClassProvider>(
+                context,
+                listen: false,
+              );
+              await authProvider.signOut(
+                resetClassProvider: () => classProvider.reset(),
+              );
+
+              if (context.mounted &&
+                  authProvider.status == AuthStatus.unauthenticated) {
+                // Navigate to login screen and clear the navigation stack
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/login', (route) => false);
+              }
             },
           ),
         ],
@@ -105,7 +121,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 8),
-                      Text('Student Number: ${student?.studentNumber ?? 'N/A'}'),
+                      Text(
+                        'Student Number: ${student?.studentNumber ?? 'N/A'}',
+                      ),
                       Text('Institution: ${student?.institution ?? 'N/A'}'),
                       Text('Level/Year: ${student?.level ?? 'N/A'}'),
                     ],
@@ -113,7 +131,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // My Classes section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -126,7 +144,9 @@ class _StudentDashboardState extends State<StudentDashboard> {
                     onPressed: () async {
                       await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const JoinClassScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const JoinClassScreen(),
+                        ),
                       );
                       // Refresh classes after returning from join screen
                       _loadClasses();
@@ -140,70 +160,76 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               // Classes list or empty state
               Expanded(
-                child: _isLoading 
-                  ? const Center(child: CircularProgressIndicator())
-                  : classes.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.class_outlined,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'No classes joined yet',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : classes.isEmpty
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.class_outlined,
+                                size: 64,
                                 color: Colors.grey,
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Join a class by entering a class code',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              onPressed: () {
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No classes joined yet',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Join a class by entering a class code',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => const JoinClassScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.add),
+                                label: const Text('Join Class'),
+                              ),
+                            ],
+                          ),
+                        )
+                        : ListView.builder(
+                          itemCount: classes.length,
+                          itemBuilder: (context, index) {
+                            return ClassCard(
+                              classModel: classes[index],
+                              showCode:
+                                  false, // Don't show the class code for students
+                              onTap: () {
+                                // Navigate to class details screen
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const JoinClassScreen()),
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => ClassDetailsScreen(
+                                          classModel: classes[index],
+                                        ),
+                                  ),
                                 );
                               },
-                              icon: const Icon(Icons.add),
-                              label: const Text('Join Class'),
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: classes.length,
-                        itemBuilder: (context, index) {
-                          return ClassCard(
-                            classModel: classes[index],
-                            showCode: false, // Don't show the class code for students
-                            onTap: () {
-                              // Navigate to class details screen
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ClassDetailsScreen(
-                                    classModel: classes[index],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
               ),
             ],
           ),
@@ -211,4 +237,4 @@ class _StudentDashboardState extends State<StudentDashboard> {
       ),
     );
   }
-} 
+}

@@ -15,59 +15,23 @@ class SignupRoleSelectScreen extends StatelessWidget {
   void _navigateToStudentSignup(BuildContext context) {
     // Clear any existing errors
     context.read<AuthProvider>().clearError();
-    
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const StudentSignupScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeOutQuint;
 
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          var offsetAnimation = animation.drive(tween);
-
-          return SlideTransition(
-            position: offsetAnimation,
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-    );
+    // Use named route for consistent navigation with route protection
+    Navigator.pushNamed(context, '/signup/student');
   }
 
   void _navigateToLecturerSignup(BuildContext context) {
     // Clear any existing errors
     context.read<AuthProvider>().clearError();
-    
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const LecturerSignupScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeOutQuint;
 
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          var offsetAnimation = animation.drive(tween);
-
-          return SlideTransition(
-            position: offsetAnimation,
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-    );
+    // Use named route for consistent navigation with route protection
+    Navigator.pushNamed(context, '/signup/lecturer');
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       body: Stack(
         children: [
@@ -77,19 +41,20 @@ class SignupRoleSelectScreen extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: isDark
-                    ? [
-                        AppTheme.darkBackground,
-                        AppTheme.darkBackground.withOpacity(0.8),
-                      ]
-                    : [
-                        AppTheme.lightPrimaryStart.withOpacity(0.05),
-                        AppTheme.lightPrimaryEnd.withOpacity(0.02),
-                      ],
+                colors:
+                    isDark
+                        ? [
+                          AppTheme.darkBackground,
+                          AppTheme.darkBackground.withOpacity(0.8),
+                        ]
+                        : [
+                          AppTheme.lightPrimaryStart.withOpacity(0.05),
+                          AppTheme.lightPrimaryEnd.withOpacity(0.02),
+                        ],
               ),
             ),
           ),
-          
+
           // Content
           SafeArea(
             child: Padding(
@@ -108,9 +73,10 @@ class SignupRoleSelectScreen extends StatelessWidget {
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isDark 
-                                  ? AppTheme.darkSurface.withOpacity(0.8)
-                                  : AppTheme.lightSurface.withOpacity(0.8),
+                              color:
+                                  isDark
+                                      ? AppTheme.darkSurface.withOpacity(0.8)
+                                      : AppTheme.lightSurface.withOpacity(0.8),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.05),
@@ -121,7 +87,9 @@ class SignupRoleSelectScreen extends StatelessWidget {
                             ),
                             child: Icon(
                               Icons.arrow_back,
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.9),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withOpacity(0.9),
                               size: 20,
                             ),
                           ),
@@ -130,9 +98,9 @@ class SignupRoleSelectScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 40),
-                  
+
                   // App logo with gradient
                   FadeInUp(
                     delay: const Duration(milliseconds: 100),
@@ -159,9 +127,9 @@ class SignupRoleSelectScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Heading with gradient
                   FadeInUp(
                     delay: const Duration(milliseconds: 200),
@@ -169,11 +137,15 @@ class SignupRoleSelectScreen extends StatelessWidget {
                       children: [
                         ShaderMask(
                           shaderCallback: (Rect bounds) {
-                            return AppTheme.primaryGradient(isDark).createShader(bounds);
+                            return AppTheme.primaryGradient(
+                              isDark,
+                            ).createShader(bounds);
                           },
                           child: Text(
                             'EduConnect',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            style: Theme.of(
+                              context,
+                            ).textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                               letterSpacing: 1.2,
@@ -190,48 +162,53 @@ class SignupRoleSelectScreen extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           'Are you a student or a lecturer?',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isDark 
-                                ? AppTheme.darkTextSecondary
-                                : AppTheme.lightTextSecondary,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
+                            color:
+                                isDark
+                                    ? AppTheme.darkTextSecondary
+                                    : AppTheme.lightTextSecondary,
                           ),
                           textAlign: TextAlign.center,
                         ),
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 48),
-                  
+
                   // Role options
                   FadeInUp(
                     delay: const Duration(milliseconds: 300),
                     child: _buildRoleOption(
                       context,
                       title: 'Student',
-                      description: 'Access course materials, submit assignments, and track your progress',
+                      description:
+                          'Access course materials, submit assignments, and track your progress',
                       icon: Icons.person,
                       iconGradient: AppTheme.primaryGradient(isDark),
                       onTap: () => _navigateToStudentSignup(context),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   FadeInUp(
                     delay: const Duration(milliseconds: 400),
                     child: _buildRoleOption(
                       context,
                       title: 'Lecturer',
-                      description: 'Create courses, manage content, and interact with students',
+                      description:
+                          'Create courses, manage content, and interact with students',
                       icon: Icons.school,
                       iconGradient: AppTheme.secondaryGradient(isDark),
                       onTap: () => _navigateToLecturerSignup(context),
                     ),
                   ),
-                  
+
                   const Spacer(),
-                  
+
                   // Already have an account link
                   FadeInUp(
                     delay: const Duration(milliseconds: 450),
@@ -241,7 +218,9 @@ class SignupRoleSelectScreen extends StatelessWidget {
                         Text(
                           'Already have an account?',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onBackground.withOpacity(0.8),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onBackground.withOpacity(0.8),
                             fontWeight: FontWeight.w400,
                             fontSize: 14,
                           ),
@@ -249,20 +228,25 @@ class SignupRoleSelectScreen extends StatelessWidget {
                         TextButton(
                           onPressed: () => Navigator.pop(context),
                           style: TextButton.styleFrom(
-                            foregroundColor: isDark
-                                ? AppTheme.darkPrimaryStart
-                                : AppTheme.lightPrimaryStart,
+                            foregroundColor:
+                                isDark
+                                    ? AppTheme.darkPrimaryStart
+                                    : AppTheme.lightPrimaryStart,
                             textStyle: const TextStyle(
                               fontWeight: FontWeight.w500,
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                           ),
                           child: Text(
                             'Login',
                             style: TextStyle(
-                              color: isDark
-                                  ? AppTheme.darkPrimaryStart
-                                  : AppTheme.lightPrimaryStart,
+                              color:
+                                  isDark
+                                      ? AppTheme.darkPrimaryStart
+                                      : AppTheme.lightPrimaryStart,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -288,7 +272,7 @@ class SignupRoleSelectScreen extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return GradientContainer(
       useCardStyle: true,
       padding: EdgeInsets.zero,
@@ -318,15 +302,11 @@ class SignupRoleSelectScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Icon(
-                    icon,
-                    color: Colors.white,
-                    size: 26,
-                  ),
+                  child: Icon(icon, color: Colors.white, size: 26),
                 ),
-                
+
                 const SizedBox(width: 16),
-                
+
                 // Text content
                 Expanded(
                   child: Column(
@@ -345,15 +325,16 @@ class SignupRoleSelectScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
-                          color: isDark 
-                              ? AppTheme.darkTextSecondary
-                              : AppTheme.lightTextSecondary,
+                          color:
+                              isDark
+                                  ? AppTheme.darkTextSecondary
+                                  : AppTheme.lightTextSecondary,
                         ),
                       ),
                     ],
                   ),
                 ),
-                
+
                 // Arrow icon
                 ShaderMask(
                   shaderCallback: (Rect bounds) {
@@ -372,4 +353,4 @@ class SignupRoleSelectScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

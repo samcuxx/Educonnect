@@ -39,28 +39,35 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       await context.read<AuthProvider>().signIn(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-        
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
       // Navigate to dashboard if authentication is successful
       if (!mounted) return;
       if (context.read<AuthProvider>().status == AuthStatus.authenticated) {
         Navigator.of(context).pushAndRemoveUntil(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const DashboardScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            pageBuilder:
+                (context, animation, secondaryAnimation) =>
+                    const DashboardScreen(),
+            transitionsBuilder: (
+              context,
+              animation,
+              secondaryAnimation,
+              child,
+            ) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeOutQuint;
-              
-              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+              var tween = Tween(
+                begin: begin,
+                end: end,
+              ).chain(CurveTween(curve: curve));
               var offsetAnimation = animation.drive(tween);
-              
-              return SlideTransition(
-                position: offsetAnimation,
-                child: child,
-              );
+
+              return SlideTransition(position: offsetAnimation, child: child);
             },
             transitionDuration: const Duration(milliseconds: 500),
           ),
@@ -73,34 +80,16 @@ class _LoginScreenState extends State<LoginScreen> {
   void _navigateToSignup() {
     // Clear any existing errors before navigating
     context.read<AuthProvider>().clearError();
-    
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const SignupRoleSelectScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeOutQuint;
 
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-          var offsetAnimation = animation.drive(tween);
-
-          return SlideTransition(
-            position: offsetAnimation,
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-    );
+    // Use named route for signup to ensure it works with route protection
+    Navigator.pushNamed(context, '/signup');
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       body: Stack(
         children: [
@@ -110,19 +99,20 @@ class _LoginScreenState extends State<LoginScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: isDark
-                    ? [
-                        AppTheme.darkBackground,
-                        AppTheme.darkBackground.withOpacity(0.8),
-                      ]
-                    : [
-                        AppTheme.lightPrimaryStart.withOpacity(0.05),
-                        AppTheme.lightPrimaryEnd.withOpacity(0.02),
-                      ],
+                colors:
+                    isDark
+                        ? [
+                          AppTheme.darkBackground,
+                          AppTheme.darkBackground.withOpacity(0.8),
+                        ]
+                        : [
+                          AppTheme.lightPrimaryStart.withOpacity(0.05),
+                          AppTheme.lightPrimaryEnd.withOpacity(0.02),
+                        ],
               ),
             ),
           ),
-          
+
           // Content
           SafeArea(
             child: SingleChildScrollView(
@@ -136,14 +126,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     FadeInLeft(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          const ThemeToggleButton(),
-                        ],
+                        children: [const ThemeToggleButton()],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 40),
-                    
+
                     // App logo with gradient
                     FadeInUp(
                       delay: const Duration(milliseconds: 100),
@@ -170,9 +158,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Welcome text with gradient
                     FadeInUp(
                       delay: const Duration(milliseconds: 200),
@@ -180,11 +168,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           ShaderMask(
                             shaderCallback: (Rect bounds) {
-                              return AppTheme.primaryGradient(isDark).createShader(bounds);
+                              return AppTheme.primaryGradient(
+                                isDark,
+                              ).createShader(bounds);
                             },
                             child: Text(
                               'EduConnect',
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              style: Theme.of(
+                                context,
+                              ).textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                                 letterSpacing: 1.2,
@@ -201,19 +193,22 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 4),
                           Text(
                             'Sign in to continue',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: isDark 
-                                  ? AppTheme.darkTextSecondary
-                                  : AppTheme.lightTextSecondary,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.copyWith(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkTextSecondary
+                                      : AppTheme.lightTextSecondary,
                             ),
                             textAlign: TextAlign.center,
                           ),
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 40),
-                    
+
                     // Login form in a gradient container
                     FadeInUp(
                       delay: const Duration(milliseconds: 300),
@@ -232,16 +227,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                 if (value == null || value.isEmpty) {
                                   return 'Please enter your email';
                                 }
-                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                    .hasMatch(value)) {
+                                if (!RegExp(
+                                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                ).hasMatch(value)) {
                                   return 'Please enter a valid email';
                                 }
                                 return null;
                               },
                             ),
-                            
+
                             const SizedBox(height: 16),
-                            
+
                             // Password field
                             CustomTextField(
                               controller: _passwordController,
@@ -274,32 +270,44 @@ class _LoginScreenState extends State<LoginScreen> {
                             GradientButton(
                               text: 'Login',
                               onPressed: _login,
-                              isLoading: authProvider.status == AuthStatus.loading,
+                              isLoading:
+                                  authProvider.status == AuthStatus.loading,
                             ),
                           ],
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Error message
                     if (authProvider.errorMessage != null)
                       FadeInUp(
                         delay: const Duration(milliseconds: 350),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
-                            color: isDark
-                                ? AppTheme.darkSecondaryStart.withOpacity(0.1)
-                                : AppTheme.lightSecondaryStart.withOpacity(0.05),
+                            color:
+                                isDark
+                                    ? AppTheme.darkSecondaryStart.withOpacity(
+                                      0.1,
+                                    )
+                                    : AppTheme.lightSecondaryStart.withOpacity(
+                                      0.05,
+                                    ),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: isDark
-                                  ? AppTheme.darkSecondaryStart.withOpacity(0.3)
-                                  : AppTheme.lightSecondaryStart.withOpacity(0.3),
+                              color:
+                                  isDark
+                                      ? AppTheme.darkSecondaryStart.withOpacity(
+                                        0.3,
+                                      )
+                                      : AppTheme.lightSecondaryStart
+                                          .withOpacity(0.3),
                               width: 0.8,
                             ),
                           ),
@@ -309,22 +317,31 @@ class _LoginScreenState extends State<LoginScreen> {
                               Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: isDark
-                                      ? AppTheme.darkSecondaryStart.withOpacity(0.7)
-                                      : AppTheme.lightSecondaryStart.withOpacity(0.7),
+                                  color:
+                                      isDark
+                                          ? AppTheme.darkSecondaryStart
+                                              .withOpacity(0.7)
+                                          : AppTheme.lightSecondaryStart
+                                              .withOpacity(0.7),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.error_outline,
-                                    color: Colors.white, size: 16),
+                                child: const Icon(
+                                  Icons.error_outline,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   authProvider.errorMessage!,
                                   style: TextStyle(
-                                    color: isDark
-                                        ? AppTheme.darkSecondaryEnd.withOpacity(0.9)
-                                        : AppTheme.lightSecondaryStart.withOpacity(0.9),
+                                    color:
+                                        isDark
+                                            ? AppTheme.darkSecondaryEnd
+                                                .withOpacity(0.9)
+                                            : AppTheme.lightSecondaryStart
+                                                .withOpacity(0.9),
                                     fontWeight: FontWeight.w400,
                                     fontSize: 14,
                                   ),
@@ -334,9 +351,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Sign up link
                     FadeInUp(
                       delay: const Duration(milliseconds: 450),
@@ -346,7 +363,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           Text(
                             "Don't have an account?",
                             style: TextStyle(
-                              color: Theme.of(context).colorScheme.onBackground.withOpacity(0.8),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onBackground.withOpacity(0.8),
                               fontWeight: FontWeight.w400,
                               fontSize: 14,
                             ),
@@ -354,20 +373,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextButton(
                             onPressed: _navigateToSignup,
                             style: TextButton.styleFrom(
-                              foregroundColor: isDark
-                                  ? AppTheme.darkPrimaryStart
-                                  : AppTheme.lightPrimaryStart,
+                              foregroundColor:
+                                  isDark
+                                      ? AppTheme.darkPrimaryStart
+                                      : AppTheme.lightPrimaryStart,
                               textStyle: const TextStyle(
                                 fontWeight: FontWeight.w500,
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                             ),
                             child: Text(
                               'Sign Up',
                               style: TextStyle(
-                                color: isDark
-                                    ? AppTheme.darkPrimaryStart
-                                    : AppTheme.lightPrimaryStart,
+                                color:
+                                    isDark
+                                        ? AppTheme.darkPrimaryStart
+                                        : AppTheme.lightPrimaryStart,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),

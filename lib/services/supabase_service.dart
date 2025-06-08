@@ -30,6 +30,66 @@ class SupabaseService {
     return SupabaseService(Supabase.instance.client);
   }
 
+  // Helper method to send welcome SMS to new users
+  Future<void> _sendWelcomeSms({
+    required String fullName,
+    required String userType,
+    String? phoneNumber,
+  }) async {
+    if (phoneNumber == null ||
+        phoneNumber.isEmpty ||
+        !AppConfig.enableSmsNotifications) {
+      return;
+    }
+
+    try {
+      // Standardize format - ensure it starts with + or country code
+      String formattedNumber = phoneNumber.trim().replaceAll(' ', '');
+      if (!formattedNumber.startsWith('+') &&
+          !formattedNumber.startsWith('233')) {
+        // Add Ghana country code if not present (assuming Ghana numbers)
+        if (formattedNumber.startsWith('0')) {
+          formattedNumber = '233${formattedNumber.substring(1)}';
+        } else {
+          formattedNumber = '233$formattedNumber';
+        }
+      }
+
+      // Create a simple, professional welcome message
+      final welcomeMessage =
+          'Welcome to EduConnect, $fullName! Your ${userType.toLowerCase()} account has been created successfully. Use the app to connect, learn, and share educational resources.';
+
+      print('Sending welcome SMS to new $userType: $formattedNumber');
+
+      // Send the welcome SMS with retry logic
+      bool success = false;
+      int attempts = 0;
+
+      while (!success && attempts < 2) {
+        attempts++;
+        success = await _mnotifyService.sendSms(
+          recipient: formattedNumber,
+          message: welcomeMessage,
+        );
+
+        if (success) {
+          print('Welcome SMS sent successfully to $formattedNumber');
+          break;
+        } else if (attempts < 2) {
+          // Wait briefly before retry
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      }
+
+      if (!success) {
+        print('Failed to send welcome SMS after multiple attempts');
+      }
+    } catch (e) {
+      print('Error sending welcome SMS: $e');
+      // Don't throw the error - we don't want signup to fail if SMS fails
+    }
+  }
+
   // Sign up a new student
   Future<void> signUpStudent({
     required String email,
@@ -59,6 +119,13 @@ class SupabaseService {
           'level': level,
           'phone_number': phoneNumber,
         });
+
+        // Send welcome SMS if phone number is provided
+        await _sendWelcomeSms(
+          fullName: fullName,
+          userType: 'Student',
+          phoneNumber: phoneNumber,
+        );
       }
     } catch (e) {
       rethrow;
@@ -92,6 +159,13 @@ class SupabaseService {
           'department': department,
           'phone_number': phoneNumber,
         });
+
+        // Send welcome SMS if phone number is provided
+        await _sendWelcomeSms(
+          fullName: fullName,
+          userType: 'Lecturer',
+          phoneNumber: phoneNumber,
+        );
       }
     } catch (e) {
       rethrow;
@@ -467,8 +541,19 @@ class SupabaseService {
             for (final profile in studentProfiles) {
               final phoneNumber = profile['phone_number'] as String?;
               if (phoneNumber != null && phoneNumber.isNotEmpty) {
-                phoneNumbers.add(phoneNumber);
-                print('Adding phone number: $phoneNumber');
+                // Standardize format - ensure it starts with + or country code
+                String formattedNumber = phoneNumber.trim().replaceAll(' ', '');
+                if (!formattedNumber.startsWith('+') &&
+                    !formattedNumber.startsWith('233')) {
+                  // Add Ghana country code if not present (assuming Ghana numbers)
+                  if (formattedNumber.startsWith('0')) {
+                    formattedNumber = '233${formattedNumber.substring(1)}';
+                  } else {
+                    formattedNumber = '233$formattedNumber';
+                  }
+                }
+                phoneNumbers.add(formattedNumber);
+                print('Adding phone number: $formattedNumber');
               }
             }
 
@@ -482,21 +567,54 @@ class SupabaseService {
 
             print('Sending SMS to ${phoneNumbers.length} phone numbers');
 
-            // Create SMS message with both title and content
+            // Create SMS message with appropriate length handling for better delivery
+            final baseMessage =
+                'New Announcement from $lecturerName for $courseCode - $className:\nTitle: $title';
+
+            // Check total length including the message
+            final fullMessageLength =
+                baseMessage.length + '\nMessage: '.length + message.length;
+
+            // If total message exceeds safe SMS length (280 chars), don't include content
             final smsMessage =
-                'New Announcement from $lecturerName for $courseCode - $className:\nTitle: $title\nMessage: $message';
+                fullMessageLength > 280
+                    ? '$baseMessage\nCheck app for full message content'
+                    : '$baseMessage\nMessage: $message';
 
             print('SMS Message: $smsMessage');
 
             // Send SMS to each student individually for better delivery rate
             for (final phoneNumber in phoneNumbers) {
               try {
-                final success = await _mnotifyService.sendSms(
-                  recipient: phoneNumber,
-                  message: smsMessage,
-                );
+                // Try up to 2 times for announcements to ensure delivery
+                bool success = false;
+                int attempts = 0;
 
-                print('SMS to $phoneNumber success: $success');
+                while (!success && attempts < 2) {
+                  attempts++;
+                  print('SMS attempt $attempts to $phoneNumber');
+
+                  success = await _mnotifyService.sendSms(
+                    recipient: phoneNumber,
+                    message: smsMessage,
+                  );
+
+                  if (success) {
+                    print(
+                      'SMS to $phoneNumber success after $attempts attempt(s)',
+                    );
+                    break;
+                  } else if (attempts < 2) {
+                    // Wait briefly before retry
+                    await Future.delayed(const Duration(seconds: 1));
+                  }
+                }
+
+                if (!success) {
+                  print(
+                    'Failed to send SMS to $phoneNumber after multiple attempts',
+                  );
+                }
               } catch (individualSmsError) {
                 print(
                   'Error sending individual SMS to $phoneNumber: $individualSmsError',
@@ -1066,41 +1184,46 @@ class SupabaseService {
         'assigned_by_name': lecturerName,
         'file_type': fileType,
       };
-      
+
       // Send SMS notification to students if enabled
       if (sendSms && AppConfig.enableSmsNotifications) {
         try {
           // Get class info for SMS
-          final classInfo = await _client
-              .from('classes')
-              .select('name, course_code')
-              .eq('id', classId)
-              .single();
-          
+          final classInfo =
+              await _client
+                  .from('classes')
+                  .select('name, course_code')
+                  .eq('id', classId)
+                  .single();
+
           final className = classInfo['name'] as String;
           final courseCode = classInfo['course_code'] as String;
-          
+
           // Format deadline for SMS
-          final deadlineStr = "${deadline.day}/${deadline.month}/${deadline.year}";
-          
+          final deadlineStr =
+              "${deadline.day}/${deadline.month}/${deadline.year}";
+
           // Find all student members of the class
           final classMembers = await _client
               .from('class_members')
               .select('user_id')
               .eq('class_id', classId);
-          
+
           if (classMembers.isNotEmpty) {
             // Get all student profiles with phone numbers
-            final memberIds = (classMembers as List).map((m) => m['user_id']).toList();
-            
+            final memberIds =
+                (classMembers as List).map((m) => m['user_id']).toList();
+
             final studentProfiles = await _client
                 .from('profiles')
                 .select('phone_number')
                 .inFilter('id', memberIds)
                 .not('phone_number', 'is', null);
-            
-            print('Found ${studentProfiles.length} student profiles with phone numbers');
-            
+
+            print(
+              'Found ${studentProfiles.length} student profiles with phone numbers',
+            );
+
             // Extract phone numbers
             final List<String> phoneNumbers = [];
             for (final profile in studentProfiles) {
@@ -1110,34 +1233,59 @@ class SupabaseService {
                 print('Adding phone number: $phoneNumber');
               }
             }
-            
+
             if (phoneNumbers.isEmpty) {
               print('No valid phone numbers found for students in this class');
               return AssignmentModel.fromJson(completeData);
             }
-            
+
             print('Sending SMS to ${phoneNumbers.length} phone numbers');
-            
+
             // Create SMS message
-            final smsMessage = 
+            final smsMessage =
                 'New Assignment from $lecturerName for $courseCode - $className:\n'
                 'Title: $title\n'
                 'Due date: $deadlineStr\n'
                 'Check the app for details';
-            
+
             print('SMS Message: $smsMessage');
-            
+
             // Send SMS to each student individually for better delivery rate
             for (final phoneNumber in phoneNumbers) {
               try {
-                final success = await _mnotifyService.sendSms(
-                  recipient: phoneNumber,
-                  message: smsMessage,
-                );
-                
-                print('SMS to $phoneNumber success: $success');
+                // Try up to 2 times for announcements to ensure delivery
+                bool success = false;
+                int attempts = 0;
+
+                while (!success && attempts < 2) {
+                  attempts++;
+                  print('SMS attempt $attempts to $phoneNumber');
+
+                  success = await _mnotifyService.sendSms(
+                    recipient: phoneNumber,
+                    message: smsMessage,
+                  );
+
+                  if (success) {
+                    print(
+                      'SMS to $phoneNumber success after $attempts attempt(s)',
+                    );
+                    break;
+                  } else if (attempts < 2) {
+                    // Wait briefly before retry
+                    await Future.delayed(const Duration(seconds: 1));
+                  }
+                }
+
+                if (!success) {
+                  print(
+                    'Failed to send SMS to $phoneNumber after multiple attempts',
+                  );
+                }
               } catch (individualSmsError) {
-                print('Error sending individual SMS to $phoneNumber: $individualSmsError');
+                print(
+                  'Error sending individual SMS to $phoneNumber: $individualSmsError',
+                );
               }
             }
           }

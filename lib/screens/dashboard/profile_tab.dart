@@ -16,11 +16,12 @@ class ProfileTab extends StatefulWidget {
   State<ProfileTab> createState() => _ProfileTabState();
 }
 
-class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateMixin {
+class _ProfileTabState extends State<ProfileTab>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _slideAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -28,21 +29,21 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
       ),
     );
-    
+
     _slideAnimation = Tween<double>(begin: 50.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
       ),
     );
-    
+
     _animationController.forward();
   }
 
@@ -59,7 +60,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
     final user = authProvider.currentUser;
     final isLecturer = authProvider.isLecturer;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
@@ -79,25 +80,34 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
             children: [
               // Profile Header
               _buildProfileHeader(context, user, isLecturer, isDark),
-              
+
               const SizedBox(height: 24),
-              
+
               // User information
               _buildUserInfoSection(context, user, isLecturer, isDark),
-              
+
               const SizedBox(height: 24),
-              
+
               // Account settings
-              _buildSettingsSection(context, authProvider, classProvider, isDark),
+              _buildSettingsSection(
+                context,
+                authProvider,
+                classProvider,
+                isDark,
+              ),
             ],
           ),
         ),
       ),
     );
   }
-  
+
   Widget _buildProfileHeader(
-      BuildContext context, User? user, bool isLecturer, bool isDark) {
+    BuildContext context,
+    User? user,
+    bool isLecturer,
+    bool isDark,
+  ) {
     return Row(
       children: [
         // Profile image with gradient border
@@ -105,25 +115,32 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: isLecturer
-                ? AppTheme.secondaryGradient(isDark)
-                : AppTheme.primaryGradient(isDark),
+            gradient:
+                isLecturer
+                    ? AppTheme.secondaryGradient(isDark)
+                    : AppTheme.primaryGradient(isDark),
           ),
           child: CircleAvatar(
             radius: 40,
-            backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+            backgroundColor:
+                isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
             child: Icon(
               Icons.person,
               size: 40,
-              color: isLecturer
-                  ? (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart)
-                  : (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart),
+              color:
+                  isLecturer
+                      ? (isDark
+                          ? AppTheme.darkSecondaryStart
+                          : AppTheme.lightSecondaryStart)
+                      : (isDark
+                          ? AppTheme.darkPrimaryStart
+                          : AppTheme.lightPrimaryStart),
             ),
           ),
         ),
-        
+
         const SizedBox(width: 16),
-        
+
         // User name and role
         Expanded(
           child: Column(
@@ -132,18 +149,22 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
               Text(
                 user?.fullName ?? 'User',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  gradient: isLecturer
-                      ? AppTheme.secondaryGradient(isDark)
-                      : AppTheme.primaryGradient(isDark),
+                  gradient:
+                      isLecturer
+                          ? AppTheme.secondaryGradient(isDark)
+                          : AppTheme.primaryGradient(isDark),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -161,23 +182,23 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       ],
     );
   }
-  
+
   Widget _buildUserInfoSection(
-      BuildContext context, User? user, bool isLecturer, bool isDark) {
+    BuildContext context,
+    User? user,
+    bool isLecturer,
+    bool isDark,
+  ) {
     // Different UI for student vs lecturer
     if (user == null) {
       return Container();
     }
-    
+
     final infoItems = <Map<String, dynamic>>[];
-    
+
     // Common fields
-    infoItems.add({
-      'icon': Icons.email,
-      'title': 'Email',
-      'value': user.email,
-    });
-    
+    infoItems.add({'icon': Icons.email, 'title': 'Email', 'value': user.email});
+
     // User type specific fields
     if (isLecturer) {
       final lecturer = user as Lecturer;
@@ -209,7 +230,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
         'value': student.level,
       });
     }
-    
+
     return GradientContainer(
       useSecondaryGradient: isLecturer,
       padding: const EdgeInsets.all(24),
@@ -218,10 +239,11 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ShaderMask(
-            shaderCallback: (bounds) => (isLecturer
-                    ? AppTheme.secondaryGradient(isDark)
-                    : AppTheme.primaryGradient(isDark))
-                .createShader(bounds),
+            shaderCallback:
+                (bounds) => (isLecturer
+                        ? AppTheme.secondaryGradient(isDark)
+                        : AppTheme.primaryGradient(isDark))
+                    .createShader(bounds),
             child: Text(
               'Profile Information',
               style: TextStyle(
@@ -232,19 +254,21 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
             ),
           ),
           const SizedBox(height: 16),
-          ...infoItems.map((item) => _buildInfoItem(
-                context,
-                icon: item['icon'],
-                title: item['title'],
-                value: item['value'],
-                isLecturer: isLecturer,
-                isDark: isDark,
-              )),
+          ...infoItems.map(
+            (item) => _buildInfoItem(
+              context,
+              icon: item['icon'],
+              title: item['title'],
+              value: item['value'],
+              isLecturer: isLecturer,
+              isDark: isDark,
+            ),
+          ),
         ],
       ),
     );
   }
-  
+
   Widget _buildInfoItem(
     BuildContext context, {
     required IconData icon,
@@ -274,9 +298,14 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
             child: Icon(
               icon,
               size: 18,
-              color: isLecturer
-                  ? (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart)
-                  : (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart),
+              color:
+                  isLecturer
+                      ? (isDark
+                          ? AppTheme.darkSecondaryStart
+                          : AppTheme.lightSecondaryStart)
+                      : (isDark
+                          ? AppTheme.darkPrimaryStart
+                          : AppTheme.lightPrimaryStart),
             ),
           ),
           const SizedBox(width: 16),
@@ -288,7 +317,10 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
                   title,
                   style: TextStyle(
                     fontSize: 14,
-                    color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                    color:
+                        isDark
+                            ? AppTheme.darkTextSecondary
+                            : AppTheme.lightTextSecondary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -306,19 +338,23 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       ),
     );
   }
-  
+
   Widget _buildSettingsSection(
-      BuildContext context, AuthProvider authProvider, ClassProvider classProvider, bool isDark) {
+    BuildContext context,
+    AuthProvider authProvider,
+    ClassProvider classProvider,
+    bool isDark,
+  ) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Account',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         _buildSettingItem(
@@ -333,7 +369,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
                 builder: (context) => const EditProfileScreen(),
               ),
             );
-            
+
             // Refresh the UI if profile was updated
             if (result == true) {
               setState(() {});
@@ -342,11 +378,11 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
           isDark: isDark,
         ),
         const Divider(height: 1),
-        
+
         // Theme Selection
         _buildThemeSelector(context, themeProvider, isDark),
         const Divider(height: 1),
-        
+
         _buildSettingItem(
           context,
           icon: Icons.help_outline,
@@ -361,8 +397,20 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
         const SizedBox(height: 24),
         GradientButton(
           text: 'Sign Out',
-          onPressed: () {
-            authProvider.signOut(resetClassProvider: () => classProvider.reset());
+          onPressed: () async {
+            // Sign out and reset the class provider
+            await authProvider.signOut(
+              resetClassProvider: () => classProvider.reset(),
+            );
+
+            if (context.mounted &&
+                authProvider.status == AuthStatus.unauthenticated) {
+              // Navigate to login screen and clear the navigation stack
+              // This ensures the user can't go back to authenticated screens
+              Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil('/login', (route) => false);
+            }
           },
           isLoading: authProvider.status == AuthStatus.loading,
           useSecondaryGradient: authProvider.isLecturer,
@@ -370,8 +418,12 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       ],
     );
   }
-  
-  Widget _buildThemeSelector(BuildContext context, ThemeProvider themeProvider, bool isDark) {
+
+  Widget _buildThemeSelector(
+    BuildContext context,
+    ThemeProvider themeProvider,
+    bool isDark,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
@@ -382,25 +434,26 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
               Icon(
                 Icons.palette_outlined,
                 size: 24,
-                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                color:
+                    isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.lightTextSecondary,
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Theme',
-                      style: TextStyle(
-                        fontSize: 16,
-                      ),
-                    ),
+                    const Text('Theme', style: TextStyle(fontSize: 16)),
                     const SizedBox(height: 4),
                     Text(
                       'Choose your preferred theme',
                       style: TextStyle(
                         fontSize: 14,
-                        color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                        color:
+                            isDark
+                                ? AppTheme.darkTextSecondary
+                                : AppTheme.lightTextSecondary,
                       ),
                     ),
                   ],
@@ -456,23 +509,37 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected
-              ? (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart).withOpacity(0.1)
-              : Colors.transparent,
+          color:
+              isSelected
+                  ? (isDark
+                          ? AppTheme.darkPrimaryStart
+                          : AppTheme.lightPrimaryStart)
+                      .withOpacity(0.1)
+                  : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected
-                ? (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart)
-                : (isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1)),
+            color:
+                isSelected
+                    ? (isDark
+                        ? AppTheme.darkPrimaryStart
+                        : AppTheme.lightPrimaryStart)
+                    : (isDark
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.black.withOpacity(0.1)),
           ),
         ),
         child: Column(
           children: [
             Icon(
               icon,
-              color: isSelected
-                  ? (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart)
-                  : (isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+              color:
+                  isSelected
+                      ? (isDark
+                          ? AppTheme.darkPrimaryStart
+                          : AppTheme.lightPrimaryStart)
+                      : (isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary),
               size: 24,
             ),
             const SizedBox(height: 8),
@@ -481,9 +548,14 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected
-                    ? (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart)
-                    : (isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary),
+                color:
+                    isSelected
+                        ? (isDark
+                            ? AppTheme.darkPrimaryStart
+                            : AppTheme.lightPrimaryStart)
+                        : (isDark
+                            ? AppTheme.darkTextSecondary
+                            : AppTheme.lightTextSecondary),
               ),
             ),
           ],
@@ -491,7 +563,7 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       ),
     );
   }
-  
+
   Widget _buildSettingItem(
     BuildContext context, {
     required IconData icon,
@@ -511,7 +583,10 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
               Icon(
                 icon,
                 size: 24,
-                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                color:
+                    isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.lightTextSecondary,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -530,7 +605,10 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
                       subtitle,
                       style: TextStyle(
                         fontSize: 14,
-                        color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                        color:
+                            isDark
+                                ? AppTheme.darkTextSecondary
+                                : AppTheme.lightTextSecondary,
                       ),
                     ),
                   ],
@@ -538,7 +616,10 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
               ),
               Icon(
                 Icons.chevron_right,
-                color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+                color:
+                    isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.lightTextSecondary,
               ),
             ],
           ),
@@ -546,4 +627,4 @@ class _ProfileTabState extends State<ProfileTab> with SingleTickerProviderStateM
       ),
     );
   }
-} 
+}

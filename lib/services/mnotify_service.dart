@@ -18,19 +18,32 @@ class MNotifyService {
       // Ensure phone number format is correct (remove any spaces)
       final formattedRecipient = recipient.replaceAll(' ', '');
 
-      // URL encode the message and sender
-      final encodedMessage = Uri.encodeComponent(message);
-      final actualSender = sender ?? AppConfig.mNotifySenderId;
-      final encodedSender = Uri.encodeComponent(actualSender);
+      // Truncate message if it's too long (mNotify has a limit)
+      final truncatedMessage =
+          message.length > 918 ? '${message.substring(0, 915)}...' : message;
 
-      final url = Uri.parse(
-        '$_baseUrl?key=$_apiKey&to=$formattedRecipient&msg=$encodedMessage&sender_id=$encodedSender',
+      // Build query parameters manually to ensure proper encoding
+      final Map<String, String> queryParams = {
+        'key': _apiKey,
+        'to': formattedRecipient,
+        'msg': truncatedMessage,
+        'sender_id': sender ?? AppConfig.mNotifySenderId,
+      };
+
+      // Create URL with properly encoded parameters
+      final uri = Uri.parse(_baseUrl);
+      final url = Uri(
+        scheme: uri.scheme,
+        host: uri.host,
+        path: uri.path,
+        queryParameters: queryParams,
       );
 
       print('Sending SMS to: $formattedRecipient');
       print('SMS URL: $url');
 
-      final response = await http.post(url);
+      // Use GET method for more reliable delivery with mNotify
+      final response = await http.get(url);
 
       print('SMS Response Status: ${response.statusCode}');
       print('SMS Response Body: ${response.body}');
@@ -67,20 +80,33 @@ class MNotifyService {
       // Join phone numbers with comma
       final recipientsStr = formattedRecipients.join(',');
 
-      // URL encode the message and sender
-      final encodedMessage = Uri.encodeComponent(message);
-      final actualSender = sender ?? AppConfig.mNotifySenderId;
-      final encodedSender = Uri.encodeComponent(actualSender);
+      // Truncate message if it's too long (mNotify has a limit)
+      final truncatedMessage =
+          message.length > 918 ? '${message.substring(0, 915)}...' : message;
 
-      final url = Uri.parse(
-        '$_baseUrl?key=$_apiKey&to=$recipientsStr&msg=$encodedMessage&sender_id=$encodedSender',
+      // Build query parameters manually to ensure proper encoding
+      final Map<String, String> queryParams = {
+        'key': _apiKey,
+        'to': recipientsStr,
+        'msg': truncatedMessage,
+        'sender_id': sender ?? AppConfig.mNotifySenderId,
+      };
+
+      // Create URL with properly encoded parameters
+      final uri = Uri.parse(_baseUrl);
+      final url = Uri(
+        scheme: uri.scheme,
+        host: uri.host,
+        path: uri.path,
+        queryParameters: queryParams,
       );
 
       print('Sending bulk SMS to ${recipients.length} recipients');
       print('First recipient: ${recipients.first}');
       print('SMS URL: $url');
 
-      final response = await http.post(url);
+      // Use GET method for more reliable delivery with mNotify
+      final response = await http.get(url);
 
       print('Bulk SMS Response Status: ${response.statusCode}');
       print('Bulk SMS Response Body: ${response.body}');
