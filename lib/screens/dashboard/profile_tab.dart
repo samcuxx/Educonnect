@@ -21,7 +21,7 @@ class _ProfileTabState extends State<ProfileTab>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _slideAnimation;
-
+  
   @override
   void initState() {
     super.initState();
@@ -29,21 +29,21 @@ class _ProfileTabState extends State<ProfileTab>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-
+    
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
       ),
     );
-
+    
     _slideAnimation = Tween<double>(begin: 50.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
       ),
     );
-
+    
     _animationController.forward();
   }
 
@@ -60,7 +60,7 @@ class _ProfileTabState extends State<ProfileTab>
     final user = authProvider.currentUser;
     final isLecturer = authProvider.isLecturer;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
+    
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
@@ -80,14 +80,14 @@ class _ProfileTabState extends State<ProfileTab>
             children: [
               // Profile Header
               _buildProfileHeader(context, user, isLecturer, isDark),
-
+              
               const SizedBox(height: 24),
-
+              
               // User information
               _buildUserInfoSection(context, user, isLecturer, isDark),
-
+              
               const SizedBox(height: 24),
-
+              
               // Account settings
               _buildSettingsSection(
                 context,
@@ -101,7 +101,7 @@ class _ProfileTabState extends State<ProfileTab>
       ),
     );
   }
-
+  
   Widget _buildProfileHeader(
     BuildContext context,
     User? user,
@@ -117,8 +117,8 @@ class _ProfileTabState extends State<ProfileTab>
             shape: BoxShape.circle,
             gradient:
                 isLecturer
-                    ? AppTheme.secondaryGradient(isDark)
-                    : AppTheme.primaryGradient(isDark),
+                ? AppTheme.secondaryGradient(isDark)
+                : AppTheme.primaryGradient(isDark),
           ),
           child: CircleAvatar(
             radius: 40,
@@ -138,9 +138,9 @@ class _ProfileTabState extends State<ProfileTab>
             ),
           ),
         ),
-
+        
         const SizedBox(width: 16),
-
+        
         // User name and role
         Expanded(
           child: Column(
@@ -149,8 +149,8 @@ class _ProfileTabState extends State<ProfileTab>
               Text(
                 user?.fullName ?? 'User',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -163,8 +163,8 @@ class _ProfileTabState extends State<ProfileTab>
                 decoration: BoxDecoration(
                   gradient:
                       isLecturer
-                          ? AppTheme.secondaryGradient(isDark)
-                          : AppTheme.primaryGradient(isDark),
+                      ? AppTheme.secondaryGradient(isDark)
+                      : AppTheme.primaryGradient(isDark),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -182,7 +182,7 @@ class _ProfileTabState extends State<ProfileTab>
       ],
     );
   }
-
+  
   Widget _buildUserInfoSection(
     BuildContext context,
     User? user,
@@ -193,12 +193,12 @@ class _ProfileTabState extends State<ProfileTab>
     if (user == null) {
       return Container();
     }
-
+    
     final infoItems = <Map<String, dynamic>>[];
-
+    
     // Common fields
     infoItems.add({'icon': Icons.email, 'title': 'Email', 'value': user.email});
-
+    
     // User type specific fields
     if (isLecturer) {
       final lecturer = user as Lecturer;
@@ -230,7 +230,7 @@ class _ProfileTabState extends State<ProfileTab>
         'value': student.level,
       });
     }
-
+    
     return GradientContainer(
       useSecondaryGradient: isLecturer,
       padding: const EdgeInsets.all(24),
@@ -241,9 +241,9 @@ class _ProfileTabState extends State<ProfileTab>
           ShaderMask(
             shaderCallback:
                 (bounds) => (isLecturer
-                        ? AppTheme.secondaryGradient(isDark)
-                        : AppTheme.primaryGradient(isDark))
-                    .createShader(bounds),
+                    ? AppTheme.secondaryGradient(isDark)
+                    : AppTheme.primaryGradient(isDark))
+                .createShader(bounds),
             child: Text(
               'Profile Information',
               style: TextStyle(
@@ -256,19 +256,19 @@ class _ProfileTabState extends State<ProfileTab>
           const SizedBox(height: 16),
           ...infoItems.map(
             (item) => _buildInfoItem(
-              context,
-              icon: item['icon'],
-              title: item['title'],
-              value: item['value'],
-              isLecturer: isLecturer,
-              isDark: isDark,
+                context,
+                icon: item['icon'],
+                title: item['title'],
+                value: item['value'],
+                isLecturer: isLecturer,
+                isDark: isDark,
             ),
           ),
         ],
       ),
     );
   }
-
+  
   Widget _buildInfoItem(
     BuildContext context, {
     required IconData icon,
@@ -338,7 +338,7 @@ class _ProfileTabState extends State<ProfileTab>
       ),
     );
   }
-
+  
   Widget _buildSettingsSection(
     BuildContext context,
     AuthProvider authProvider,
@@ -346,7 +346,7 @@ class _ProfileTabState extends State<ProfileTab>
     bool isDark,
   ) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -369,7 +369,7 @@ class _ProfileTabState extends State<ProfileTab>
                 builder: (context) => const EditProfileScreen(),
               ),
             );
-
+            
             // Refresh the UI if profile was updated
             if (result == true) {
               setState(() {});
@@ -378,11 +378,11 @@ class _ProfileTabState extends State<ProfileTab>
           isDark: isDark,
         ),
         const Divider(height: 1),
-
+        
         // Theme Selection
         _buildThemeSelector(context, themeProvider, isDark),
         const Divider(height: 1),
-
+        
         _buildSettingItem(
           context,
           icon: Icons.help_outline,
@@ -418,7 +418,7 @@ class _ProfileTabState extends State<ProfileTab>
       ],
     );
   }
-
+  
   Widget _buildThemeSelector(
     BuildContext context,
     ThemeProvider themeProvider,
@@ -515,7 +515,7 @@ class _ProfileTabState extends State<ProfileTab>
                           ? AppTheme.darkPrimaryStart
                           : AppTheme.lightPrimaryStart)
                       .withOpacity(0.1)
-                  : Colors.transparent,
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color:
@@ -563,7 +563,7 @@ class _ProfileTabState extends State<ProfileTab>
       ),
     );
   }
-
+  
   Widget _buildSettingItem(
     BuildContext context, {
     required IconData icon,
@@ -627,4 +627,4 @@ class _ProfileTabState extends State<ProfileTab>
       ),
     );
   }
-}
+} 

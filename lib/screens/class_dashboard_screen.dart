@@ -17,23 +17,23 @@ class ClassDashboardScreen extends StatefulWidget {
 
 class _ClassDashboardScreenState extends State<ClassDashboardScreen> {
   bool _isLoading = false;
-
+  
   @override
   void initState() {
     super.initState();
     // Load classes only on first initialization
     _loadClasses();
   }
-
+  
   Future<void> _loadClasses() async {
     setState(() {
       _isLoading = true;
     });
-
+    
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final classProvider = Provider.of<ClassProvider>(context, listen: false);
-
+      
       if (authProvider.isLecturer) {
         await classProvider.loadLecturerClasses();
       } else if (authProvider.isStudent) {
@@ -61,20 +61,20 @@ class _ClassDashboardScreenState extends State<ClassDashboardScreen> {
       context,
       MaterialPageRoute(builder: (context) => const CreateClassScreen()),
     );
-
+    
     // Only reload if a class was actually created
     if (result == true) {
       _loadClasses();
     }
   }
-
+  
   // Method to join a class and refresh the list
   Future<void> _joinClass(BuildContext context) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const JoinClassScreen()),
     );
-
+    
     // Only reload if a class was actually joined
     if (result == true) {
       _loadClasses();
@@ -168,36 +168,36 @@ class _ClassDashboardScreenState extends State<ClassDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-
+              
               // Classes list or empty state
               Expanded(
                 child:
                     _isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : classes.isEmpty
-                        ? _buildEmptyState(context, isLecturer)
-                        : ListView.builder(
-                          itemCount: classes.length,
-                          itemBuilder: (context, index) {
-                            return ClassCard(
-                              classModel: classes[index],
+                  ? const Center(child: CircularProgressIndicator())
+                  : classes.isEmpty
+                    ? _buildEmptyState(context, isLecturer)
+                    : ListView.builder(
+                        itemCount: classes.length,
+                        itemBuilder: (context, index) {
+                          return ClassCard(
+                            classModel: classes[index],
                               showCode:
                                   isLecturer, // Only show code for lecturers
-                              onTap: () {
-                                // Navigate to class details screen without refreshing on return
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
+                            onTap: () {
+                              // Navigate to class details screen without refreshing on return
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
                                     builder:
                                         (context) => ClassDetailsScreen(
-                                          classModel: classes[index],
-                                        ),
+                                    classModel: classes[index],
                                   ),
-                                );
-                              },
-                            );
-                          },
-                        ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -205,7 +205,7 @@ class _ClassDashboardScreenState extends State<ClassDashboardScreen> {
       ),
     );
   }
-
+  
   Widget _buildEmptyState(BuildContext context, bool isLecturer) {
     return Center(
       child: Column(
@@ -229,9 +229,9 @@ class _ClassDashboardScreenState extends State<ClassDashboardScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              isLecturer
-                  ? 'Tap + to create your first class'
-                  : 'Join a class by entering a class code',
+              isLecturer 
+                ? 'Tap + to create your first class' 
+                : 'Join a class by entering a class code',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.grey),
             ),
@@ -252,7 +252,7 @@ class _ClassDashboardScreenState extends State<ClassDashboardScreen> {
       ),
     );
   }
-
+  
   Widget _buildProfileSheet(
     BuildContext context,
     User? user,
@@ -260,7 +260,7 @@ class _ClassDashboardScreenState extends State<ClassDashboardScreen> {
     ClassProvider classProvider,
   ) {
     final isLecturer = authProvider.isLecturer;
-
+    
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       child: Column(
@@ -292,9 +292,9 @@ class _ClassDashboardScreenState extends State<ClassDashboardScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      isLecturer
-                          ? (user as Lecturer?)?.department ?? ''
-                          : (user as Student?)?.institution ?? '',
+                      isLecturer 
+                        ? (user as Lecturer?)?.department ?? '' 
+                        : (user as Student?)?.institution ?? '',
                       style: const TextStyle(color: Colors.grey),
                     ),
                   ],
@@ -326,4 +326,4 @@ class _ClassDashboardScreenState extends State<ClassDashboardScreen> {
       ),
     );
   }
-}
+} 

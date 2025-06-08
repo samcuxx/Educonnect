@@ -34,11 +34,18 @@ class AuthRouteObserver extends NavigatorObserver {
     // Check authentication state
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
+    // If user status is still loading or initial, wait for it to resolve
+    if (authProvider.status == AuthStatus.loading ||
+        authProvider.status == AuthStatus.initial) {
+      return; // Don't redirect yet, wait for auth state to be determined
+    }
+
     // If user is not authenticated, redirect to login
     if (authProvider.status != AuthStatus.authenticated) {
       // Use a post-frame callback to avoid build conflicts
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (route.navigator?.context != null) {
+          print('User not authenticated, redirecting to login screen');
           route.navigator?.pushNamedAndRemoveUntil('/login', (route) => false);
         }
       });

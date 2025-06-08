@@ -208,12 +208,28 @@ class SupabaseService {
     await _client.auth.signOut();
   }
 
-  // Get current user
+  // Get current user with improved session persistence
   Future<app_models.User?> getCurrentUser() async {
-    final currentUser = _client.auth.currentUser;
-    if (currentUser == null) return null;
-
     try {
+      // First check if we have a valid session
+      final session = await _client.auth.currentSession;
+
+      // If no valid session exists, try to recover it
+      if (session == null || session.isExpired) {
+        // Try to refresh the session
+        final response = await _client.auth.refreshSession();
+
+        // If we still don't have a valid session, user is not authenticated
+        if (response.session == null) {
+          return null;
+        }
+      }
+
+      // Get the current user after confirming session
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) return null;
+
+      // Fetch user profile data
       final userData =
           await _client
               .from('profiles')
@@ -228,6 +244,7 @@ class SupabaseService {
       }
       return null;
     } catch (e) {
+      print('Error recovering user session: $e');
       return null;
     }
   }

@@ -37,22 +37,27 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Check if user is already signed in
+  // Check if user is already signed in with improved session restoration
   Future<void> _checkCurrentUser() async {
     _status = AuthStatus.loading;
     notifyListeners();
 
     try {
+      // Using the enhanced getCurrentUser method that attempts to restore the session
       final user = await _supabaseService.getCurrentUser();
+
       if (user != null) {
         _currentUser = user;
         _status = AuthStatus.authenticated;
+        print('Session restored successfully. User: ${user.fullName}');
       } else {
         _status = AuthStatus.unauthenticated;
+        print('No valid session found. User needs to log in.');
       }
     } catch (e) {
       _status = AuthStatus.error;
       _errorMessage = _formatErrorMessage(e.toString());
+      print('Error checking current user: $_errorMessage');
     }
 
     notifyListeners();

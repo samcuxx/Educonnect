@@ -103,27 +103,48 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     // Listen to auth state changes
     final authProvider = Provider.of<AuthProvider>(context);
+    print('AuthWrapper - Current auth status: ${authProvider.status}');
 
     // Show loading indicator while checking auth status
     if (authProvider.status == AuthStatus.loading ||
         authProvider.status == AuthStatus.initial) {
       return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(
-              Theme.of(context).colorScheme.primary,
-            ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Checking session...',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
       );
     }
 
     // Show login screen if not authenticated
-    if (authProvider.status == AuthStatus.unauthenticated) {
+    if (authProvider.status == AuthStatus.unauthenticated ||
+        authProvider.status == AuthStatus.error) {
       // Force navigation to login screen if we detect unauthenticated state
       // This prevents authenticated pages from being shown when there's no session
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (ModalRoute.of(context)?.settings.name != '/login') {
+        final currentRoute = ModalRoute.of(context)?.settings.name;
+        if (currentRoute != '/login' &&
+            currentRoute != '/signup' &&
+            !(currentRoute?.startsWith('/signup/') ?? false)) {
+          print(
+            'AuthWrapper - Redirecting to login screen from: $currentRoute',
+          );
           Navigator.of(
             context,
           ).pushNamedAndRemoveUntil('/login', (route) => false);
@@ -132,7 +153,8 @@ class AuthWrapper extends StatelessWidget {
       return const LoginScreen();
     }
 
-    // Show unified dashboard for both user types
+    // Show unified dashboard for both user types when authenticated
+    print('AuthWrapper - User authenticated, showing dashboard');
     return const DashboardScreen();
   }
 }
