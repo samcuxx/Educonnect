@@ -15,7 +15,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProviderStateMixin {
+class _DashboardScreenState extends State<DashboardScreen>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
   late AnimationController _animationController;
@@ -28,12 +29,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeIn,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
     // Start the animation when the widget is built
@@ -49,7 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   void _onTabTapped(int index) {
     if (index == _currentIndex) return;
-    
+
     // Start page transition animation
     _animationController.reset();
     _pageController.animateToPage(
@@ -57,11 +55,11 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
-    
+
     setState(() {
       _currentIndex = index;
     });
-    
+
     // Start fade-in animation for the new page content
     _animationController.forward();
   }
@@ -71,16 +69,16 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final authProvider = Provider.of<AuthProvider>(context);
     final isLecturer = authProvider.isLecturer;
-    
+
     // Set system UI overlay style based on theme
     SystemChrome.setSystemUIOverlayStyle(
-      isDark 
-        ? SystemUiOverlayStyle.light.copyWith(
+      isDark
+          ? SystemUiOverlayStyle.light.copyWith(
             statusBarColor: Colors.transparent,
             systemNavigationBarColor: AppTheme.darkSurface,
             systemNavigationBarIconBrightness: Brightness.light,
           )
-        : SystemUiOverlayStyle.dark.copyWith(
+          : SystemUiOverlayStyle.dark.copyWith(
             statusBarColor: Colors.transparent,
             systemNavigationBarColor: AppTheme.lightSurface,
             systemNavigationBarIconBrightness: Brightness.dark,
@@ -96,42 +94,40 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: isDark
-                    ? [
-                        AppTheme.darkBackground,
-                        AppTheme.darkBackground.withOpacity(0.8),
-                      ]
-                    : [
-                        AppTheme.lightPrimaryStart.withOpacity(0.05),
-                        AppTheme.lightPrimaryEnd.withOpacity(0.02),
-                      ],
+                colors:
+                    isDark
+                        ? [
+                          AppTheme.darkBackground,
+                          AppTheme.darkBackground.withOpacity(0.8),
+                        ]
+                        : [
+                          AppTheme.lightPrimaryStart.withOpacity(0.05),
+                          AppTheme.lightPrimaryEnd.withOpacity(0.02),
+                        ],
               ),
             ),
           ),
-          
+
           // Page content
           PageView(
             controller: _pageController,
             physics: const NeverScrollableScrollPhysics(), // Disable swiping
             children: [
               // Home tab - Shows overview
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: const HomeTab(),
-              ),
-              
+              FadeTransition(opacity: _fadeAnimation, child: const HomeTab()),
+
               // Classes tab - Shows all classes
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: const ClassesTab(),
               ),
-              
+
               // Resources tab - Shows all resources
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: const ResourcesTab(),
               ),
-              
+
               // Profile tab - Shows user profile
               FadeTransition(
                 opacity: _fadeAnimation,
@@ -141,7 +137,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           ),
         ],
       ),
-      
+
       // Bottom navigation bar with tabs
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -161,30 +157,30 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildTabItem(
-                  context: context, 
-                  icon: Icons.home_rounded, 
-                  label: 'Home', 
+                  context: context,
+                  icon: Icons.home_rounded,
+                  label: 'Home',
                   index: 0,
                   isDark: isDark,
                 ),
                 _buildTabItem(
-                  context: context, 
-                  icon: Icons.class_rounded, 
-                  label: 'Classes', 
+                  context: context,
+                  icon: Icons.school_rounded,
+                  label: 'Classes',
                   index: 1,
                   isDark: isDark,
                 ),
                 _buildTabItem(
-                  context: context, 
-                  icon: Icons.book_rounded, 
-                  label: 'Resources', 
+                  context: context,
+                  icon: Icons.folder_rounded,
+                  label: 'Resources',
                   index: 2,
                   isDark: isDark,
                 ),
                 _buildTabItem(
-                  context: context, 
-                  icon: Icons.person_rounded, 
-                  label: 'Profile', 
+                  context: context,
+                  icon: Icons.person_rounded,
+                  label: 'Profile',
                   index: 3,
                   isDark: isDark,
                 ),
@@ -195,7 +191,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       ),
     );
   }
-  
+
   Widget _buildTabItem({
     required BuildContext context,
     required IconData icon,
@@ -205,20 +201,23 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }) {
     final isSelected = _currentIndex == index;
     final isLecturer = Provider.of<AuthProvider>(context).isLecturer;
-    
+
     // Use secondary colors for lecturers, primary colors for students
-    final selectedGradient = isLecturer
-        ? AppTheme.secondaryGradient(isDark)
-        : AppTheme.primaryGradient(isDark);
-    
-    final selectedColor = isLecturer
-        ? (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart)
-        : (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart);
-    
-    final unselectedColor = isDark 
-        ? AppTheme.darkTextSecondary 
-        : AppTheme.lightTextSecondary;
-    
+    final selectedGradient =
+        isLecturer
+            ? AppTheme.secondaryGradient(isDark)
+            : AppTheme.primaryGradient(isDark);
+
+    final selectedColor =
+        isLecturer
+            ? (isDark
+                ? AppTheme.darkSecondaryStart
+                : AppTheme.lightSecondaryStart)
+            : (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart);
+
+    final unselectedColor =
+        isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+
     return InkWell(
       onTap: () => _onTabTapped(index),
       borderRadius: BorderRadius.circular(16),
@@ -227,9 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         decoration: BoxDecoration(
           gradient: isSelected ? selectedGradient : null,
-          color: isSelected
-              ? null
-              : Colors.transparent,
+          color: isSelected ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -254,4 +251,4 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       ),
     );
   }
-} 
+}
