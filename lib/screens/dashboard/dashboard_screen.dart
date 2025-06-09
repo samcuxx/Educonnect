@@ -15,53 +15,24 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen>
-    with SingleTickerProviderStateMixin {
+class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
-
-    // Start the animation when the widget is built
-    _animationController.forward();
-  }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
   void _onTabTapped(int index) {
     if (index == _currentIndex) return;
 
-    // Start page transition animation
-    _animationController.reset();
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    _pageController.jumpToPage(index);
 
     setState(() {
       _currentIndex = index;
     });
-
-    // Start fade-in animation for the new page content
-    _animationController.forward();
   }
 
   @override
@@ -112,27 +83,18 @@ class _DashboardScreenState extends State<DashboardScreen>
           PageView(
             controller: _pageController,
             physics: const NeverScrollableScrollPhysics(), // Disable swiping
-            children: [
+            children: const [
               // Home tab - Shows overview
-              FadeTransition(opacity: _fadeAnimation, child: const HomeTab()),
+              HomeTab(),
 
               // Classes tab - Shows all classes
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: const ClassesTab(),
-              ),
+              ClassesTab(),
 
               // Resources tab - Shows all resources
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: const ResourcesTab(),
-              ),
+              ResourcesTab(),
 
               // Profile tab - Shows user profile
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: const ProfileTab(),
-              ),
+              ProfileTab(),
             ],
           ),
         ],
