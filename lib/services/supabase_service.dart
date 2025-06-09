@@ -126,6 +126,98 @@ class SupabaseService {
     }
   }
 
+  // Get user phone number by email for password reset
+  Future<String?> getUserPhoneByEmail(String email) async {
+    try {
+      final response = await _client
+          .from('profiles')
+          .select('phone_number')
+          .eq('email', email.toLowerCase().trim())
+          .limit(1);
+
+      if ((response as List).isNotEmpty) {
+        final phoneNumber = response.first['phone_number'] as String?;
+        if (phoneNumber != null && phoneNumber.isNotEmpty) {
+          return phoneNumber;
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error getting user phone by email: $e');
+      return null;
+    }
+  }
+
+  // Reset user password using database function
+  Future<bool> resetUserPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      // First, verify the user exists in our profiles table
+      final profileResponse = await _client
+          .from('profiles')
+          .select('id')
+          .eq('email', email.toLowerCase().trim())
+          .limit(1);
+
+      if ((profileResponse as List).isEmpty) {
+        print('User not found with email: $email');
+        return false;
+      }
+
+      final userId = profileResponse.first['id'] as String;
+
+      // Use a database function to update the password
+      // This function needs to be created in your Supabase database
+      try {
+        final result = await _client.rpc(
+          'reset_user_password',
+          params: {'user_id': userId, 'new_password': newPassword},
+        );
+
+        print('Password reset successful for user: $email');
+        return true;
+      } catch (rpcError) {
+        print('Database function error: $rpcError');
+
+        // If the function doesn't exist, provide clear instructions
+        if (rpcError.toString().toLowerCase().contains('function') &&
+            (rpcError.toString().toLowerCase().contains('does not exist') ||
+                rpcError.toString().toLowerCase().contains('not found'))) {
+          print('\n=== DATABASE FUNCTION REQUIRED ===');
+          print(
+            'The "reset_user_password" function is not found in your Supabase database.',
+          );
+          print('Please execute this SQL in your Supabase SQL editor:\n');
+          print('''
+CREATE OR REPLACE FUNCTION reset_user_password(user_id UUID, new_password TEXT)
+RETURNS BOOLEAN 
+LANGUAGE plpgsql 
+SECURITY DEFINER
+AS \$\$
+BEGIN
+  UPDATE auth.users 
+  SET 
+    encrypted_password = crypt(new_password, gen_salt('bf')),
+    updated_at = NOW()
+  WHERE id = user_id;
+  
+  RETURN FOUND;
+END;
+\$\$;
+          ''');
+          print('=== END DATABASE FUNCTION ===\n');
+        }
+
+        throw Exception('Database function required. Check console for SQL.');
+      }
+    } catch (e) {
+      print('Error resetting user password: $e');
+      return false;
+    }
+  }
+
   // Sign up a new student
   Future<void> signUpStudent({
     required String email,

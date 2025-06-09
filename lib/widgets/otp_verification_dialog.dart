@@ -113,8 +113,9 @@ class _OtpVerificationDialogState extends State<OtpVerificationDialog> {
       final isValid = authProvider.verifyOtp(widget.phoneNumber, otp);
 
       if (isValid) {
-        // Verification successful
+        // Verification successful - close dialog with true result
         Navigator.of(context).pop(true);
+        // Call the completion callback if provided (for backward compatibility)
         if (widget.onVerificationComplete != null) {
           widget.onVerificationComplete!();
         }

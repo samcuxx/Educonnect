@@ -9,6 +9,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_role_select_screen.dart';
 import 'screens/auth/student_signup_screen.dart';
 import 'screens/auth/lecturer_signup_screen.dart';
+import 'screens/auth/forgot_password_screen.dart';
 import 'screens/class_dashboard_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'models/user_model.dart';
@@ -73,6 +74,7 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignupRoleSelectScreen(),
         '/signup/student': (context) => const StudentSignupScreen(),
         '/signup/lecturer': (context) => const LecturerSignupScreen(),
+        '/forgot-password': (context) => const ForgotPasswordScreen(),
       },
       // Handle routing when the app is in an unauthenticated state
       onGenerateRoute: (settings) {

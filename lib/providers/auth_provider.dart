@@ -108,6 +108,32 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Get user phone number by email for password reset
+  Future<String?> getUserPhoneByEmail(String email) async {
+    try {
+      return await _supabaseService.getUserPhoneByEmail(email);
+    } catch (e) {
+      print('Error getting user phone: $e');
+      return null;
+    }
+  }
+
+  // Reset user password
+  Future<bool> resetPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      return await _supabaseService.resetUserPassword(
+        email: email,
+        newPassword: newPassword,
+      );
+    } catch (e) {
+      print('Error resetting password: $e');
+      return false;
+    }
+  }
+
   // Sign in with email and password
   Future<void> signIn({required String email, required String password}) async {
     _status = AuthStatus.loading;

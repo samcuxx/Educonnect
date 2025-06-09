@@ -39,10 +39,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       await context.read<AuthProvider>().signIn(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-        
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
       // Navigate to dashboard if authentication is successful
       if (!mounted) return;
       if (context.read<AuthProvider>().status == AuthStatus.authenticated) {
@@ -60,13 +60,13 @@ class _LoginScreenState extends State<LoginScreen> {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeOutQuint;
-              
+
               var tween = Tween(
                 begin: begin,
                 end: end,
               ).chain(CurveTween(curve: curve));
               var offsetAnimation = animation.drive(tween);
-              
+
               return SlideTransition(position: offsetAnimation, child: child);
             },
             transitionDuration: const Duration(milliseconds: 500),
@@ -80,16 +80,24 @@ class _LoginScreenState extends State<LoginScreen> {
   void _navigateToSignup() {
     // Clear any existing errors before navigating
     context.read<AuthProvider>().clearError();
-    
+
     // Use named route for signup to ensure it works with route protection
     Navigator.pushNamed(context, '/signup');
+  }
+
+  void _navigateToForgotPassword() {
+    // Clear any existing errors before navigating
+    context.read<AuthProvider>().clearError();
+
+    // Use named route for forgot password
+    Navigator.pushNamed(context, '/forgot-password');
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       body: Stack(
         children: [
@@ -101,18 +109,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 end: Alignment.bottomCenter,
                 colors:
                     isDark
-                    ? [
-                        AppTheme.darkBackground,
-                        AppTheme.darkBackground.withOpacity(0.8),
-                      ]
-                    : [
-                        AppTheme.lightPrimaryStart.withOpacity(0.05),
-                        AppTheme.lightPrimaryEnd.withOpacity(0.02),
-                      ],
+                        ? [
+                          AppTheme.darkBackground,
+                          AppTheme.darkBackground.withOpacity(0.8),
+                        ]
+                        : [
+                          AppTheme.lightPrimaryStart.withOpacity(0.05),
+                          AppTheme.lightPrimaryEnd.withOpacity(0.02),
+                        ],
               ),
             ),
           ),
-          
+
           // Content
           SafeArea(
             child: SingleChildScrollView(
@@ -129,9 +137,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [const ThemeToggleButton()],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 40),
-                    
+
                     // App logo with gradient
                     FadeInUp(
                       delay: const Duration(milliseconds: 100),
@@ -158,9 +166,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Welcome text with gradient
                     FadeInUp(
                       delay: const Duration(milliseconds: 200),
@@ -198,17 +206,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             ).textTheme.bodyMedium?.copyWith(
                               color:
                                   isDark
-                                  ? AppTheme.darkTextSecondary
-                                  : AppTheme.lightTextSecondary,
+                                      ? AppTheme.darkTextSecondary
+                                      : AppTheme.lightTextSecondary,
                             ),
                             textAlign: TextAlign.center,
                           ),
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 40),
-                    
+
                     // Login form in a gradient container
                     FadeInUp(
                       delay: const Duration(milliseconds: 300),
@@ -235,9 +243,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 return null;
                               },
                             ),
-                            
+
                             const SizedBox(height: 16),
-                            
+
                             // Password field
                             CustomTextField(
                               controller: _passwordController,
@@ -277,9 +285,44 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    
-                    const SizedBox(height: 16),
-                    
+
+                    // Forgot password link
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 350),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 16.0, right: 8.0),
+                          child: TextButton(
+                            onPressed: _navigateToForgotPassword,
+                            style: TextButton.styleFrom(
+                              foregroundColor:
+                                  isDark
+                                      ? AppTheme.darkPrimaryStart
+                                      : AppTheme.lightPrimaryStart,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                            ),
+                            child: Text(
+                              'Forgot Password?',
+                              style: TextStyle(
+                                color:
+                                    isDark
+                                        ? AppTheme.darkPrimaryStart
+                                        : AppTheme.lightPrimaryStart,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
                     // Error message
                     if (authProvider.errorMessage != null)
                       FadeInUp(
@@ -351,9 +394,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Sign up link
                     FadeInUp(
                       delay: const Duration(milliseconds: 450),
@@ -375,8 +418,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextButton.styleFrom(
                               foregroundColor:
                                   isDark
-                                  ? AppTheme.darkPrimaryStart
-                                  : AppTheme.lightPrimaryStart,
+                                      ? AppTheme.darkPrimaryStart
+                                      : AppTheme.lightPrimaryStart,
                               textStyle: const TextStyle(
                                 fontWeight: FontWeight.w500,
                               ),
@@ -390,8 +433,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(
                                 color:
                                     isDark
-                                    ? AppTheme.darkPrimaryStart
-                                    : AppTheme.lightPrimaryStart,
+                                        ? AppTheme.darkPrimaryStart
+                                        : AppTheme.lightPrimaryStart,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),

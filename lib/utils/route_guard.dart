@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
+import '../screens/auth/reset_password_screen.dart';
 
 /// A navigator observer that monitors route changes and redirects
 /// to the login screen if a user tries to access a protected route
@@ -48,6 +49,12 @@ class AuthRouteObserver extends NavigatorObserver {
     if (authProvider.status != AuthStatus.authenticated) {
       // Check if this route actually requires authentication
       final settings = route.settings;
+
+      // Extra check for password reset flows - don't redirect if coming from password reset
+      if (_isPasswordResetFlow(route)) {
+        return;
+      }
+
       if (settings.requiresAuth) {
         // Use a post-frame callback to avoid build conflicts
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -63,6 +70,38 @@ class AuthRouteObserver extends NavigatorObserver {
     }
   }
 
+  bool _isPasswordResetFlow(Route<dynamic> route) {
+    // Check if this is part of the password reset flow
+    if (route is MaterialPageRoute || route is PageRoute) {
+      try {
+        // Only access builder if the route supports it
+        if (route is MaterialPageRoute) {
+          final widget = route.builder(route.navigator!.context);
+          // Direct widget type check for ResetPasswordScreen
+          if (widget is ResetPasswordScreen) {
+            return true;
+          }
+
+          final widgetString = widget.toString().toLowerCase();
+          return widgetString.contains('resetpassword') ||
+              widgetString.contains('reset_password') ||
+              widgetString.contains('resetpasswordscreen');
+        } else if (route is PageRoute && route.hasActiveRouteBelow == false) {
+          // For PageRoute instances that might have custom builders
+          // We'll check the route settings or other properties
+          final settings = route.settings;
+          if (settings.name != null) {
+            return settings.name!.toLowerCase().contains('reset') ||
+                settings.name!.toLowerCase().contains('password');
+          }
+        }
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  }
+
   bool _isExemptedRoute(Route<dynamic> route) {
     // Define routes that don't require authentication
     final settings = route.settings;
@@ -72,6 +111,7 @@ class AuthRouteObserver extends NavigatorObserver {
       // Exempt all auth-related routes
       if (settings.name == '/login' ||
           settings.name == '/forgot-password' ||
+          settings.name == '/reset-password' ||
           settings.name == '/otp-verification' ||
           settings.name!.startsWith('/signup')) {
         return true;
@@ -80,11 +120,28 @@ class AuthRouteObserver extends NavigatorObserver {
 
     // Check route by widget type if name is null
     if (settings.name == null && route is MaterialPageRoute) {
-      final widget = route.builder(route.navigator!.context);
-      // Exempt login and signup screens
-      return widget is LoginScreen ||
-          widget.toString().toLowerCase().contains('signup') ||
-          widget.toString().toLowerCase().contains('sign_up');
+      try {
+        final widget = route.builder(route.navigator!.context);
+
+        // Direct widget type checks
+        if (widget is LoginScreen || widget is ResetPasswordScreen) {
+          return true;
+        }
+
+        final widgetString = widget.toString().toLowerCase();
+        // Exempt login, signup, and password reset screens
+        return widgetString.contains('signup') ||
+            widgetString.contains('sign_up') ||
+            widgetString.contains('forgotpassword') ||
+            widgetString.contains('resetpassword') ||
+            widgetString.contains('forgot_password') ||
+            widgetString.contains('reset_password') ||
+            widgetString.contains('resetpasswordscreen') ||
+            widgetString.contains('loginscreen');
+      } catch (e) {
+        // If we can't determine the widget type, assume it needs auth
+        return false;
+      }
     }
 
     return false;
@@ -100,6 +157,7 @@ extension RouteSettingsExtension on RouteSettings {
     // Exempt auth-related routes
     if (name == '/login' ||
         name == '/forgot-password' ||
+        name == '/reset-password' ||
         name == '/otp-verification') {
       return false;
     }
