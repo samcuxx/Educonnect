@@ -96,4 +96,70 @@ CREATE POLICY lecturer_view_class_members ON class_members
       WHERE classes.id = class_members.class_id
       AND classes.created_by = auth.uid()
     )
-  ); 
+  );
+
+-- Add delete policy for announcements (if announcements table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'announcements') THEN
+    -- Drop existing policy if it exists
+    DROP POLICY IF EXISTS "Lecturers can delete their own announcements" ON announcements;
+    
+    -- Create the delete policy
+    CREATE POLICY "Lecturers can delete their own announcements" ON announcements
+      FOR DELETE
+      TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 
+          FROM classes 
+          WHERE classes.id = announcements.class_id 
+            AND classes.created_by = auth.uid()
+        )
+      );
+  END IF;
+END $$;
+
+-- Add delete policy for resources (if resources table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'resources') THEN
+    -- Drop existing policy if it exists
+    DROP POLICY IF EXISTS "Lecturers can delete their own resources" ON resources;
+    
+    -- Create the delete policy
+    CREATE POLICY "Lecturers can delete their own resources" ON resources
+      FOR DELETE
+      TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 
+          FROM classes 
+          WHERE classes.id = resources.class_id 
+            AND classes.created_by = auth.uid()
+        )
+      );
+  END IF;
+END $$;
+
+-- Add delete policy for assignments (if assignments table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'assignments') THEN
+    -- Drop existing policy if it exists
+    DROP POLICY IF EXISTS "Lecturers can delete their own assignments" ON assignments;
+    
+    -- Create the delete policy
+    CREATE POLICY "Lecturers can delete their own assignments" ON assignments
+      FOR DELETE
+      TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 
+          FROM classes 
+          WHERE classes.id = assignments.class_id 
+            AND classes.created_by = auth.uid()
+        )
+      );
+  END IF;
+END $$;

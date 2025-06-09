@@ -858,6 +858,195 @@ END;
     }
   }
 
+  // Delete an announcement
+  Future<void> deleteAnnouncement(String announcementId, String classId) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+
+      // Check if user is the creator of the class (only lecturers can delete)
+      final classData = await _client
+          .from('classes')
+          .select()
+          .eq('id', classId)
+          .eq('created_by', currentUser.id)
+          .limit(1);
+
+      if ((classData as List).isEmpty) {
+        throw Exception(
+          'You do not have permission to delete announcements in this class',
+        );
+      }
+
+      // Delete the announcement
+      final deleteResult =
+          await _client
+              .from('announcements')
+              .delete()
+              .eq('id', announcementId)
+              .select();
+
+      if ((deleteResult as List).isEmpty) {
+        throw Exception(
+          'Failed to delete announcement or announcement not found',
+        );
+      }
+
+      print('Announcement deleted successfully: $announcementId');
+    } catch (e) {
+      print('Error deleting announcement: $e');
+      rethrow;
+    }
+  }
+
+  // Delete a resource
+  Future<void> deleteResource(String resourceId, String classId) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+
+      // Check if user is the creator of the class (only lecturers can delete)
+      final classData = await _client
+          .from('classes')
+          .select()
+          .eq('id', classId)
+          .eq('created_by', currentUser.id)
+          .limit(1);
+
+      if ((classData as List).isEmpty) {
+        throw Exception(
+          'You do not have permission to delete resources in this class',
+        );
+      }
+
+      // Get the resource info before deletion to remove file from storage
+      final resourceData =
+          await _client
+              .from('resources')
+              .select('file_url')
+              .eq('id', resourceId)
+              .single();
+
+      final fileUrl = resourceData['file_url'] as String;
+
+      // Delete the resource record
+      final deleteResult =
+          await _client
+              .from('resources')
+              .delete()
+              .eq('id', resourceId)
+              .select();
+
+      if ((deleteResult as List).isEmpty) {
+        throw Exception('Failed to delete resource or resource not found');
+      }
+
+      // Try to delete the file from storage
+      try {
+        final uri = Uri.parse(fileUrl);
+        final path = uri.path;
+        final storagePath =
+            path.startsWith('/storage/v1/object/public/educonnect/')
+                ? path.substring('/storage/v1/object/public/educonnect/'.length)
+                : path;
+
+        await _client.storage.from('educonnect').remove([storagePath]);
+        print('File removed from storage: $storagePath');
+      } catch (storageError) {
+        print('Warning: Could not remove file from storage: $storageError');
+        // Don't fail the deletion if storage removal fails
+      }
+
+      print('Resource deleted successfully: $resourceId');
+    } catch (e) {
+      print('Error deleting resource: $e');
+      rethrow;
+    }
+  }
+
+  // Delete an assignment
+  Future<void> deleteAssignment(String assignmentId, String classId) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+
+      // Check if user is the creator of the class (only lecturers can delete)
+      final classData = await _client
+          .from('classes')
+          .select()
+          .eq('id', classId)
+          .eq('created_by', currentUser.id)
+          .limit(1);
+
+      if ((classData as List).isEmpty) {
+        throw Exception(
+          'You do not have permission to delete assignments in this class',
+        );
+      }
+
+      // Get the assignment info before deletion to remove file from storage if exists
+      final assignmentData =
+          await _client
+              .from('assignments')
+              .select('file_url')
+              .eq('id', assignmentId)
+              .single();
+
+      final fileUrl = assignmentData['file_url'] as String?;
+
+      // Delete any related submissions first
+      await _client
+          .from('submissions')
+          .delete()
+          .eq('assignment_id', assignmentId);
+
+      // Delete the assignment record
+      final deleteResult =
+          await _client
+              .from('assignments')
+              .delete()
+              .eq('id', assignmentId)
+              .select();
+
+      if ((deleteResult as List).isEmpty) {
+        throw Exception('Failed to delete assignment or assignment not found');
+      }
+
+      // Try to delete the file from storage if it exists
+      if (fileUrl != null && fileUrl.isNotEmpty) {
+        try {
+          final uri = Uri.parse(fileUrl);
+          final path = uri.path;
+          final storagePath =
+              path.startsWith('/storage/v1/object/public/educonnect/')
+                  ? path.substring(
+                    '/storage/v1/object/public/educonnect/'.length,
+                  )
+                  : path;
+
+          await _client.storage.from('educonnect').remove([storagePath]);
+          print('Assignment file removed from storage: $storagePath');
+        } catch (storageError) {
+          print(
+            'Warning: Could not remove assignment file from storage: $storageError',
+          );
+          // Don't fail the deletion if storage removal fails
+        }
+      }
+
+      print('Assignment deleted successfully: $assignmentId');
+    } catch (e) {
+      print('Error deleting assignment: $e');
+      rethrow;
+    }
+  }
+
   // Upload a resource file
   Future<ResourceModel> uploadResource({
     required String classId,

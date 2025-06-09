@@ -18,6 +18,18 @@ CREATE TABLE resources (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
 );
 
+-- Table: assignments
+CREATE TABLE IF NOT EXISTS assignments (
+  id UUID PRIMARY KEY,
+  class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  file_url TEXT,
+  assigned_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+  deadline TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
 -- Create RLS (Row Level Security) policies
 
 -- Announcements policies
@@ -59,6 +71,19 @@ CREATE POLICY "Students can view announcements for their classes" ON announcemen
       FROM class_members 
       WHERE class_members.class_id = announcements.class_id 
         AND class_members.user_id = auth.uid()
+    )
+  );
+
+-- Lecturers can delete their own announcements
+CREATE POLICY "Lecturers can delete their own announcements" ON announcements
+  FOR DELETE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 
+      FROM classes 
+      WHERE classes.id = announcements.class_id 
+        AND classes.created_by = auth.uid()
     )
   );
 
@@ -104,6 +129,19 @@ CREATE POLICY "Students can view resources for their classes" ON resources
     )
   );
 
+-- Lecturers can delete their own resources
+CREATE POLICY "Lecturers can delete their own resources" ON resources
+  FOR DELETE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 
+      FROM classes 
+      WHERE classes.id = resources.class_id 
+        AND classes.created_by = auth.uid()
+    )
+  );
+
 -- Storage policies (for file uploads)
 -- Create a storage bucket for resources
 CREATE POLICY "Public access to resources"
@@ -117,4 +155,59 @@ CREATE POLICY "Authenticated users can upload resources"
   WITH CHECK ( 
     bucket_id = 'educonnect' AND 
     (storage.foldername(name))[1] = 'resources'
-  ); 
+  );
+
+-- Assignments policies
+ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
+
+-- Lecturers can create assignments for their own classes
+CREATE POLICY "Lecturers can create assignments" ON assignments
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 
+      FROM classes 
+      WHERE classes.id = assignments.class_id 
+        AND classes.created_by = auth.uid()
+    )
+  );
+
+-- Lecturers can view and update their own assignments
+CREATE POLICY "Lecturers can view and update their own assignments" ON assignments
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 
+      FROM classes 
+      WHERE classes.id = assignments.class_id 
+        AND classes.created_by = auth.uid()
+    )
+  );
+
+-- Students can view assignments for classes they are members of
+CREATE POLICY "Students can view assignments for their classes" ON assignments
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 
+      FROM class_members 
+      WHERE class_members.class_id = assignments.class_id 
+        AND class_members.user_id = auth.uid()
+    )
+  );
+
+-- Lecturers can delete their own assignments
+CREATE POLICY "Lecturers can delete their own assignments" ON assignments
+  FOR DELETE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 
+      FROM classes 
+      WHERE classes.id = assignments.class_id 
+        AND classes.created_by = auth.uid()
+    )
+  );
