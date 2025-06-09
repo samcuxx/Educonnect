@@ -4,7 +4,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../utils/app_theme.dart';
-import '../../widgets/gradient_container.dart';
 import '../../widgets/gradient_button.dart';
 import '../../models/user_model.dart';
 import '../profile/edit_profile_screen.dart';
@@ -16,43 +15,7 @@ class ProfileTab extends StatefulWidget {
   State<ProfileTab> createState() => _ProfileTabState();
 }
 
-class _ProfileTabState extends State<ProfileTab>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _slideAnimation;
-  
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
-      ),
-    );
-    
-    _slideAnimation = Tween<double>(begin: 50.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-      ),
-    );
-    
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
+class _ProfileTabState extends State<ProfileTab> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -60,372 +23,282 @@ class _ProfileTabState extends State<ProfileTab>
     final user = authProvider.currentUser;
     final isLecturer = authProvider.isLecturer;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return FadeTransition(
-          opacity: _fadeAnimation,
-          child: Transform.translate(
-            offset: Offset(0, _slideAnimation.value),
-            child: child,
-          ),
-        );
-      },
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Profile Header
-              _buildProfileHeader(context, user, isLecturer, isDark),
-              
-              const SizedBox(height: 24),
-              
-              // User information
-              _buildUserInfoSection(context, user, isLecturer, isDark),
-              
-              const SizedBox(height: 24),
-              
-              // Account settings
-              _buildSettingsSection(
-                context,
-                authProvider,
-                classProvider,
-                isDark,
-              ),
-            ],
-          ),
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Section
+            _buildHeader(context, user, isLecturer, isDark),
+
+            const SizedBox(height: 24),
+
+            // User Information Card
+            _buildUserInfoCard(context, user, isLecturer, isDark),
+
+            const SizedBox(height: 20),
+
+            // Account Settings Card
+            _buildAccountCard(context, authProvider, isDark),
+
+            const SizedBox(height: 20),
+
+            // Preferences Card
+            _buildPreferencesCard(context, isDark),
+
+            const SizedBox(height: 20),
+
+            // Support Card
+            _buildSupportCard(context, isDark),
+
+            const SizedBox(height: 32),
+
+            // Sign Out Button
+            _buildSignOutButton(
+              context,
+              authProvider,
+              classProvider,
+              isLecturer,
+            ),
+          ],
         ),
       ),
     );
   }
-  
-  Widget _buildProfileHeader(
+
+  Widget _buildHeader(
     BuildContext context,
     User? user,
     bool isLecturer,
     bool isDark,
   ) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Profile image with gradient border
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient:
-                isLecturer
-                ? AppTheme.secondaryGradient(isDark)
-                : AppTheme.primaryGradient(isDark),
-          ),
-          child: CircleAvatar(
-            radius: 40,
-            backgroundColor:
-                isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-            child: Icon(
-              Icons.person,
-              size: 40,
-              color:
-                  isLecturer
-                      ? (isDark
-                          ? AppTheme.darkSecondaryStart
-                          : AppTheme.lightSecondaryStart)
-                      : (isDark
-                          ? AppTheme.darkPrimaryStart
-                          : AppTheme.lightPrimaryStart),
-            ),
-          ),
-        ),
-        
-        const SizedBox(width: 16),
-        
-        // User name and role
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                user?.fullName ?? 'User',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        Row(
+          children: [
+            // User initials in a circle
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                gradient:
+                    isLecturer
+                        ? AppTheme.secondaryGradient(isDark)
+                        : AppTheme.primaryGradient(isDark),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  gradient:
-                      isLecturer
-                      ? AppTheme.secondaryGradient(isDark)
-                      : AppTheme.primaryGradient(isDark),
-                  borderRadius: BorderRadius.circular(20),
-                ),
+              child: Center(
                 child: Text(
-                  isLecturer ? 'Lecturer' : 'Student',
+                  _getInitials(user?.fullName ?? 'User'),
                   style: const TextStyle(
                     color: Colors.white,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+
+            const SizedBox(width: 16),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user?.fullName ?? 'User',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: (isLecturer
+                              ? (isDark
+                                  ? AppTheme.darkSecondaryStart
+                                  : AppTheme.lightSecondaryStart)
+                              : (isDark
+                                  ? AppTheme.darkPrimaryStart
+                                  : AppTheme.lightPrimaryStart))
+                          .withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color:
+                            isLecturer
+                                ? (isDark
+                                    ? AppTheme.darkSecondaryStart
+                                    : AppTheme.lightSecondaryStart)
+                                : (isDark
+                                    ? AppTheme.darkPrimaryStart
+                                    : AppTheme.lightPrimaryStart),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      isLecturer ? 'Lecturer' : 'Student',
+                      style: TextStyle(
+                        color:
+                            isLecturer
+                                ? (isDark
+                                    ? AppTheme.darkSecondaryStart
+                                    : AppTheme.lightSecondaryStart)
+                                : (isDark
+                                    ? AppTheme.darkPrimaryStart
+                                    : AppTheme.lightPrimaryStart),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
-  
-  Widget _buildUserInfoSection(
+
+  Widget _buildUserInfoCard(
     BuildContext context,
     User? user,
     bool isLecturer,
     bool isDark,
   ) {
-    // Different UI for student vs lecturer
-    if (user == null) {
-      return Container();
-    }
-    
+    if (user == null) return const SizedBox.shrink();
+
     final infoItems = <Map<String, dynamic>>[];
-    
+
     // Common fields
-    infoItems.add({'icon': Icons.email, 'title': 'Email', 'value': user.email});
-    
+    infoItems.add({
+      'icon': Icons.email_outlined,
+      'title': 'Email Address',
+      'value': user.email,
+    });
+
     // User type specific fields
     if (isLecturer) {
       final lecturer = user as Lecturer;
       infoItems.add({
-        'icon': Icons.badge,
+        'icon': Icons.badge_outlined,
         'title': 'Staff ID',
         'value': lecturer.staffId,
       });
       infoItems.add({
-        'icon': Icons.business,
+        'icon': Icons.business_outlined,
         'title': 'Department',
         'value': lecturer.department,
       });
     } else {
       final student = user as Student;
       infoItems.add({
-        'icon': Icons.numbers,
+        'icon': Icons.numbers_outlined,
         'title': 'Student Number',
         'value': student.studentNumber,
       });
       infoItems.add({
-        'icon': Icons.business,
+        'icon': Icons.business_outlined,
         'title': 'Institution',
         'value': student.institution,
       });
       infoItems.add({
-        'icon': Icons.school,
-        'title': 'Level',
+        'icon': Icons.school_outlined,
+        'title': 'Academic Level',
         'value': student.level,
       });
     }
-    
-    return GradientContainer(
-      useSecondaryGradient: isLecturer,
-      padding: const EdgeInsets.all(24),
-      borderRadius: 16,
+
+    return _buildCard(
+      context,
+      title: 'Personal Information',
+      icon: Icons.person_outline,
+      isDark: isDark,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ShaderMask(
-            shaderCallback:
-                (bounds) => (isLecturer
-                    ? AppTheme.secondaryGradient(isDark)
-                    : AppTheme.primaryGradient(isDark))
-                .createShader(bounds),
-            child: Text(
-              'Profile Information',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...infoItems.map(
-            (item) => _buildInfoItem(
-                context,
-                icon: item['icon'],
-                title: item['title'],
-                value: item['value'],
-                isLecturer: isLecturer,
-                isDark: isDark,
-            ),
-          ),
-        ],
+        children:
+            infoItems.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              return Column(
+                children: [
+                  _buildInfoRow(
+                    icon: item['icon'],
+                    title: item['title'],
+                    value: item['value'],
+                    isDark: isDark,
+                  ),
+                  if (index < infoItems.length - 1) const SizedBox(height: 16),
+                ],
+              );
+            }).toList(),
       ),
     );
   }
-  
-  Widget _buildInfoItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String value,
-    required bool isLecturer,
-    required bool isDark,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: (isLecturer
-                      ? (isDark
-                          ? AppTheme.darkSecondaryStart
-                          : AppTheme.lightSecondaryStart)
-                      : (isDark
-                          ? AppTheme.darkPrimaryStart
-                          : AppTheme.lightPrimaryStart))
-                  .withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              size: 18,
-              color:
-                  isLecturer
-                      ? (isDark
-                          ? AppTheme.darkSecondaryStart
-                          : AppTheme.lightSecondaryStart)
-                      : (isDark
-                          ? AppTheme.darkPrimaryStart
-                          : AppTheme.lightPrimaryStart),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color:
-                        isDark
-                            ? AppTheme.darkTextSecondary
-                            : AppTheme.lightTextSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildSettingsSection(
+
+  Widget _buildAccountCard(
     BuildContext context,
     AuthProvider authProvider,
-    ClassProvider classProvider,
     bool isDark,
   ) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Account',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        _buildSettingItem(
-          context,
-          icon: Icons.edit,
-          title: 'Edit Profile',
-          subtitle: 'Update your personal information',
-          onTap: () async {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const EditProfileScreen(),
-              ),
-            );
-            
-            // Refresh the UI if profile was updated
-            if (result == true) {
-              setState(() {});
-            }
-          },
-          isDark: isDark,
-        ),
-        const Divider(height: 1),
-        
-        // Theme Selection
-        _buildThemeSelector(context, themeProvider, isDark),
-        const Divider(height: 1),
-        
-        _buildSettingItem(
-          context,
-          icon: Icons.help_outline,
-          title: 'Help & Support',
-          subtitle: 'Contact us and FAQs',
-          onTap: () {
-            // Handle help
-          },
-          isDark: isDark,
-        ),
-        const Divider(height: 1),
-        const SizedBox(height: 24),
-        GradientButton(
-          text: 'Sign Out',
-          onPressed: () async {
-            // Sign out and reset the class provider
-            await authProvider.signOut(
-              resetClassProvider: () => classProvider.reset(),
-            );
-
-            if (context.mounted &&
-                authProvider.status == AuthStatus.unauthenticated) {
-              // Navigate to login screen and clear the navigation stack
-              // This ensures the user can't go back to authenticated screens
-              Navigator.of(
+    return _buildCard(
+      context,
+      title: 'Account',
+      icon: Icons.settings_outlined,
+      isDark: isDark,
+      child: Column(
+        children: [
+          _buildActionRow(
+            icon: Icons.edit_outlined,
+            title: 'Edit Profile',
+            subtitle: 'Update your personal information',
+            onTap: () async {
+              final result = await Navigator.push(
                 context,
-              ).pushNamedAndRemoveUntil('/login', (route) => false);
-            }
-          },
-          isLoading: authProvider.status == AuthStatus.loading,
-          useSecondaryGradient: authProvider.isLecturer,
-        ),
-      ],
+                MaterialPageRoute(
+                  builder: (context) => const EditProfileScreen(),
+                ),
+              );
+              if (result == true && mounted) setState(() {});
+            },
+            isDark: isDark,
+          ),
+
+          const SizedBox(height: 16),
+
+          _buildActionRow(
+            icon: Icons.security_outlined,
+            title: 'Privacy & Security',
+            subtitle: 'Manage your account security',
+            onTap: () {
+              // TODO: Navigate to security settings
+            },
+            isDark: isDark,
+          ),
+        ],
+      ),
     );
   }
-  
-  Widget _buildThemeSelector(
-    BuildContext context,
-    ThemeProvider themeProvider,
-    bool isDark,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+
+  Widget _buildPreferencesCard(BuildContext context, bool isDark) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
+    return _buildCard(
+      context,
+      title: 'Preferences',
+      icon: Icons.tune_outlined,
+      isDark: isDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -433,21 +306,27 @@ class _ProfileTabState extends State<ProfileTab>
             children: [
               Icon(
                 Icons.palette_outlined,
-                size: 24,
+                size: 20,
                 color:
                     isDark
                         ? AppTheme.darkTextSecondary
                         : AppTheme.lightTextSecondary,
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Theme', style: TextStyle(fontSize: 16)),
+                    const Text(
+                      'Theme',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
-                      'Choose your preferred theme',
+                      'Choose your preferred appearance',
                       style: TextStyle(
                         fontSize: 14,
                         color:
@@ -461,33 +340,42 @@ class _ProfileTabState extends State<ProfileTab>
               ),
             ],
           ),
+
           const SizedBox(height: 16),
+
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildThemeOption(
-                context: context,
-                icon: Icons.light_mode,
-                label: 'Light',
-                isSelected: themeProvider.themeMode == ThemeMode.light,
-                onTap: () => themeProvider.setThemeMode(ThemeMode.light),
-                isDark: isDark,
+              Expanded(
+                child: _buildThemeOption(
+                  context: context,
+                  icon: Icons.light_mode_outlined,
+                  label: 'Light',
+                  isSelected: themeProvider.themeMode == ThemeMode.light,
+                  onTap: () => themeProvider.setThemeMode(ThemeMode.light),
+                  isDark: isDark,
+                ),
               ),
-              _buildThemeOption(
-                context: context,
-                icon: Icons.dark_mode,
-                label: 'Dark',
-                isSelected: themeProvider.themeMode == ThemeMode.dark,
-                onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
-                isDark: isDark,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildThemeOption(
+                  context: context,
+                  icon: Icons.dark_mode_outlined,
+                  label: 'Dark',
+                  isSelected: themeProvider.themeMode == ThemeMode.dark,
+                  onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
+                  isDark: isDark,
+                ),
               ),
-              _buildThemeOption(
-                context: context,
-                icon: Icons.settings_suggest,
-                label: 'System',
-                isSelected: themeProvider.themeMode == ThemeMode.system,
-                onTap: () => themeProvider.setThemeMode(ThemeMode.system),
-                isDark: isDark,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildThemeOption(
+                  context: context,
+                  icon: Icons.settings_suggest_outlined,
+                  label: 'System',
+                  isSelected: themeProvider.themeMode == ThemeMode.system,
+                  onTap: () => themeProvider.setThemeMode(ThemeMode.system),
+                  isDark: isDark,
+                ),
               ),
             ],
           ),
@@ -496,76 +384,163 @@ class _ProfileTabState extends State<ProfileTab>
     );
   }
 
-  Widget _buildThemeOption({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-    required bool isDark,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color:
-              isSelected
-                  ? (isDark
-                          ? AppTheme.darkPrimaryStart
-                          : AppTheme.lightPrimaryStart)
-                      .withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color:
-                isSelected
-                    ? (isDark
-                        ? AppTheme.darkPrimaryStart
-                        : AppTheme.lightPrimaryStart)
-                    : (isDark
-                        ? Colors.white.withOpacity(0.1)
-                        : Colors.black.withOpacity(0.1)),
+  Widget _buildSupportCard(BuildContext context, bool isDark) {
+    return _buildCard(
+      context,
+      title: 'Support',
+      icon: Icons.help_outline,
+      isDark: isDark,
+      child: Column(
+        children: [
+          _buildActionRow(
+            icon: Icons.help_center_outlined,
+            title: 'Help Center',
+            subtitle: 'Find answers to common questions',
+            onTap: () {
+              // TODO: Navigate to help center
+            },
+            isDark: isDark,
           ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color:
-                  isSelected
-                      ? (isDark
-                          ? AppTheme.darkPrimaryStart
-                          : AppTheme.lightPrimaryStart)
-                      : (isDark
-                          ? AppTheme.darkTextSecondary
-                          : AppTheme.lightTextSecondary),
-              size: 24,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color:
-                    isSelected
-                        ? (isDark
-                            ? AppTheme.darkPrimaryStart
-                            : AppTheme.lightPrimaryStart)
-                        : (isDark
-                            ? AppTheme.darkTextSecondary
-                            : AppTheme.lightTextSecondary),
-              ),
-            ),
-          ],
-        ),
+
+          const SizedBox(height: 16),
+
+          _buildActionRow(
+            icon: Icons.feedback_outlined,
+            title: 'Send Feedback',
+            subtitle: 'Help us improve the app',
+            onTap: () {
+              // TODO: Navigate to feedback
+            },
+            isDark: isDark,
+          ),
+
+          const SizedBox(height: 16),
+
+          _buildActionRow(
+            icon: Icons.info_outline,
+            title: 'About',
+            subtitle: 'App version and information',
+            onTap: () {
+              // TODO: Show about dialog
+            },
+            isDark: isDark,
+          ),
+        ],
       ),
     );
   }
-  
-  Widget _buildSettingItem(
+
+  Widget _buildCard(
     BuildContext context, {
+    required String title,
+    required IconData icon,
+    required bool isDark,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: (isDark ? Colors.grey[800] : Colors.grey[200])!,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.1 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color:
+                    isDark
+                        ? AppTheme.darkTextPrimary
+                        : AppTheme.lightTextPrimary,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String title,
+    required String value,
+    required bool isDark,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: (isDark ? Colors.grey[800] : Colors.grey[100]),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color:
+                isDark
+                    ? AppTheme.darkTextSecondary
+                    : AppTheme.lightTextSecondary,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  color:
+                      isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionRow({
     required IconData icon,
     required String title,
     required String subtitle,
@@ -576,17 +551,26 @@ class _ProfileTabState extends State<ProfileTab>
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: 24,
-                color:
-                    isDark
-                        ? AppTheme.darkTextSecondary
-                        : AppTheme.lightTextSecondary,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (isDark ? Colors.grey[800] : Colors.grey[100]),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color:
+                      isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -597,7 +581,7 @@ class _ProfileTabState extends State<ProfileTab>
                       title,
                       style: const TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -616,6 +600,7 @@ class _ProfileTabState extends State<ProfileTab>
               ),
               Icon(
                 Icons.chevron_right,
+                size: 20,
                 color:
                     isDark
                         ? AppTheme.darkTextSecondary
@@ -627,4 +612,111 @@ class _ProfileTabState extends State<ProfileTab>
       ),
     );
   }
-} 
+
+  Widget _buildThemeOption({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color:
+              isSelected
+                  ? (isDark
+                          ? AppTheme.darkPrimaryStart
+                          : AppTheme.lightPrimaryStart)
+                      .withOpacity(0.1)
+                  : (isDark ? Colors.grey[800] : Colors.grey[100]),
+          borderRadius: BorderRadius.circular(12),
+          border:
+              isSelected
+                  ? Border.all(
+                    color:
+                        isDark
+                            ? AppTheme.darkPrimaryStart
+                            : AppTheme.lightPrimaryStart,
+                    width: 2,
+                  )
+                  : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color:
+                  isSelected
+                      ? (isDark
+                          ? AppTheme.darkPrimaryStart
+                          : AppTheme.lightPrimaryStart)
+                      : (isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary),
+              size: 20,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color:
+                    isSelected
+                        ? (isDark
+                            ? AppTheme.darkPrimaryStart
+                            : AppTheme.lightPrimaryStart)
+                        : (isDark
+                            ? AppTheme.darkTextSecondary
+                            : AppTheme.lightTextSecondary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignOutButton(
+    BuildContext context,
+    AuthProvider authProvider,
+    ClassProvider classProvider,
+    bool isLecturer,
+  ) {
+    return SizedBox(
+      width: double.infinity,
+      child: GradientButton(
+        text: 'Sign Out',
+        onPressed: () async {
+          await authProvider.signOut(
+            resetClassProvider: () => classProvider.reset(),
+          );
+
+          if (context.mounted &&
+              authProvider.status == AuthStatus.unauthenticated) {
+            Navigator.of(
+              context,
+            ).pushNamedAndRemoveUntil('/login', (route) => false);
+          }
+        },
+        isLoading: authProvider.status == AuthStatus.loading,
+        useSecondaryGradient: isLecturer,
+      ),
+    );
+  }
+
+  String _getInitials(String fullName) {
+    final names = fullName.trim().split(' ');
+    if (names.length >= 2) {
+      return '${names[0][0]}${names[1][0]}'.toUpperCase();
+    } else if (names.isNotEmpty) {
+      return names[0][0].toUpperCase();
+    }
+    return 'U';
+  }
+}
