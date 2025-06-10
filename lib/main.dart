@@ -16,6 +16,9 @@ import 'models/user_model.dart';
 import 'utils/app_theme.dart';
 import 'utils/route_guard.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'services/app_initializer.dart';
+import 'services/connectivity_service.dart';
+import 'providers/resource_provider.dart';
 
 // Replace these with your own Supabase project credentials
 // You can find these in your Supabase project settings > API
@@ -26,6 +29,9 @@ const String supabaseAnonKey =
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  // Initialize offline-first services
+  await AppInitializer().initialize();
 
   // Initialize Supabase
   final supabaseService = await SupabaseService.init(
@@ -39,6 +45,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthProvider(supabaseService)),
         ChangeNotifierProvider(create: (_) => ClassProvider(supabaseService)),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+
+        Provider<ConnectivityService>(create: (_) => ConnectivityService()),
       ],
       child: const MyApp(),
     ),
@@ -105,31 +113,69 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     // Listen to auth state changes
     final authProvider = Provider.of<AuthProvider>(context);
-    print('AuthWrapper - Current auth status: ${authProvider.status}');
+    final classProvider = Provider.of<ClassProvider>(context);
+    final appInitializer = AppInitializer();
+
+    // Update offline status for the class provider
+    appInitializer.connectivityChanges.listen((isConnected) {
+      classProvider.setOfflineStatus(!isConnected);
+    });
+
+    // Build the offline status indicator widget
+    Widget buildOfflineIndicator() {
+      return StreamBuilder<bool>(
+        stream: appInitializer.connectivityChanges,
+        initialData: appInitializer.isOnline,
+        builder: (context, snapshot) {
+          final isOnline = snapshot.data ?? true;
+          if (isOnline) return const SizedBox.shrink();
+
+          // Check if user is authenticated while offline
+          final isOfflineAuthenticated =
+              authProvider.status == AuthStatus.authenticated;
+
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            color: isOfflineAuthenticated ? Colors.orange : Colors.red,
+            width: double.infinity,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.wifi_off, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  isOfflineAuthenticated
+                      ? 'Offline mode - using cached data'
+                      : 'You are offline',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
 
     // Show loading indicator while checking auth status
     if (authProvider.status == AuthStatus.loading ||
         authProvider.status == AuthStatus.initial) {
       return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary,
+        body: Column(
+          children: [
+            buildOfflineIndicator(),
+            Expanded(
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Checking session...',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
@@ -137,26 +183,24 @@ class AuthWrapper extends StatelessWidget {
     // Show login screen if not authenticated
     if (authProvider.status == AuthStatus.unauthenticated ||
         authProvider.status == AuthStatus.error) {
-      // Force navigation to login screen if we detect unauthenticated state
-      // This prevents authenticated pages from being shown when there's no session
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final currentRoute = ModalRoute.of(context)?.settings.name;
-        if (currentRoute != '/login' &&
-            currentRoute != '/signup' &&
-            !(currentRoute?.startsWith('/signup/') ?? false)) {
-          print(
-            'AuthWrapper - Redirecting to login screen from: $currentRoute',
-          );
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil('/login', (route) => false);
-        }
-      });
-      return const LoginScreen();
+      return Scaffold(
+        body: Column(
+          children: [
+            buildOfflineIndicator(),
+            const Expanded(child: LoginScreen()),
+          ],
+        ),
+      );
     }
 
-    // Show unified dashboard for both user types when authenticated
-    print('AuthWrapper - User authenticated, showing dashboard');
-    return const DashboardScreen();
+    // Show the dashboard if authenticated
+    return Scaffold(
+      body: Column(
+        children: [
+          buildOfflineIndicator(),
+          const Expanded(child: DashboardScreen()),
+        ],
+      ),
+    );
   }
 }

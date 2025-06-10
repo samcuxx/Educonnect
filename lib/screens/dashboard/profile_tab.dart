@@ -85,10 +85,9 @@ class _ProfileTabState extends State<ProfileTab> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                gradient:
-                    isLecturer
-                        ? AppTheme.secondaryGradient(isDark)
-                        : AppTheme.primaryGradient(isDark),
+                gradient: isLecturer
+                    ? AppTheme.secondaryGradient(isDark)
+                    : AppTheme.primaryGradient(isDark),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -114,10 +113,9 @@ class _ProfileTabState extends State<ProfileTab> {
                     style: GoogleFonts.inter(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color:
-                          isDark
-                              ? AppTheme.darkTextPrimary
-                              : AppTheme.lightTextPrimary,
+                      color: isDark
+                          ? AppTheme.darkTextPrimary
+                          : AppTheme.lightTextPrimary,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -131,38 +129,37 @@ class _ProfileTabState extends State<ProfileTab> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: (isLecturer
-                              ? (isDark
-                                  ? AppTheme.darkSecondaryStart
-                                  : AppTheme.lightSecondaryStart)
-                              : (isDark
-                                  ? AppTheme.darkPrimaryStart
-                                  : AppTheme.lightPrimaryStart))
-                          .withOpacity(0.1),
+                      color:
+                          (isLecturer
+                                  ? (isDark
+                                        ? AppTheme.darkSecondaryStart
+                                        : AppTheme.lightSecondaryStart)
+                                  : (isDark
+                                        ? AppTheme.darkPrimaryStart
+                                        : AppTheme.lightPrimaryStart))
+                              .withOpacity(0.1),
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(
-                        color:
-                            isLecturer
-                                ? (isDark
-                                    ? AppTheme.darkSecondaryStart
-                                    : AppTheme.lightSecondaryStart)
-                                : (isDark
-                                    ? AppTheme.darkPrimaryStart
-                                    : AppTheme.lightPrimaryStart),
+                        color: isLecturer
+                            ? (isDark
+                                  ? AppTheme.darkSecondaryStart
+                                  : AppTheme.lightSecondaryStart)
+                            : (isDark
+                                  ? AppTheme.darkPrimaryStart
+                                  : AppTheme.lightPrimaryStart),
                         width: 1,
                       ),
                     ),
                     child: Text(
                       isLecturer ? 'Lecturer' : 'Student',
                       style: GoogleFonts.inter(
-                        color:
-                            isLecturer
-                                ? (isDark
-                                    ? AppTheme.darkSecondaryStart
-                                    : AppTheme.lightSecondaryStart)
-                                : (isDark
-                                    ? AppTheme.darkPrimaryStart
-                                    : AppTheme.lightPrimaryStart),
+                        color: isLecturer
+                            ? (isDark
+                                  ? AppTheme.darkSecondaryStart
+                                  : AppTheme.lightSecondaryStart)
+                            : (isDark
+                                  ? AppTheme.darkPrimaryStart
+                                  : AppTheme.lightPrimaryStart),
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
@@ -232,22 +229,21 @@ class _ProfileTabState extends State<ProfileTab> {
       icon: Icons.person_outline,
       isDark: isDark,
       child: Column(
-        children:
-            infoItems.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-              return Column(
-                children: [
-                  _buildInfoRow(
-                    icon: item['icon'],
-                    title: item['title'],
-                    value: item['value'],
-                    isDark: isDark,
-                  ),
-                  if (index < infoItems.length - 1) const SizedBox(height: 16),
-                ],
-              );
-            }).toList(),
+        children: infoItems.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          return Column(
+            children: [
+              _buildInfoRow(
+                icon: item['icon'],
+                title: item['title'],
+                value: item['value'],
+                isDark: isDark,
+              ),
+              if (index < infoItems.length - 1) const SizedBox(height: 16),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
@@ -312,10 +308,9 @@ class _ProfileTabState extends State<ProfileTab> {
               Icon(
                 Icons.palette_outlined,
                 size: 20,
-                color:
-                    isDark
-                        ? AppTheme.darkTextSecondary
-                        : AppTheme.lightTextSecondary,
+                color: isDark
+                    ? AppTheme.darkTextSecondary
+                    : AppTheme.lightTextSecondary,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -327,10 +322,9 @@ class _ProfileTabState extends State<ProfileTab> {
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color:
-                            isDark
-                                ? AppTheme.darkTextPrimary
-                                : AppTheme.lightTextPrimary,
+                        color: isDark
+                            ? AppTheme.darkTextPrimary
+                            : AppTheme.lightTextPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -338,10 +332,9 @@ class _ProfileTabState extends State<ProfileTab> {
                       'Choose your preferred appearance',
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        color:
-                            isDark
-                                ? AppTheme.darkTextSecondary
-                                : AppTheme.lightTextSecondary,
+                        color: isDark
+                            ? AppTheme.darkTextSecondary
+                            : AppTheme.lightTextSecondary,
                       ),
                     ),
                   ],
@@ -465,10 +458,9 @@ class _ProfileTabState extends State<ProfileTab> {
               Icon(
                 icon,
                 size: 22,
-                color:
-                    isDark
-                        ? AppTheme.darkTextPrimary
-                        : AppTheme.lightTextPrimary,
+                color: isDark
+                    ? AppTheme.darkTextPrimary
+                    : AppTheme.lightTextPrimary,
               ),
               const SizedBox(width: 12),
               Text(
@@ -476,10 +468,9 @@ class _ProfileTabState extends State<ProfileTab> {
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color:
-                      isDark
-                          ? AppTheme.darkTextPrimary
-                          : AppTheme.lightTextPrimary,
+                  color: isDark
+                      ? AppTheme.darkTextPrimary
+                      : AppTheme.lightTextPrimary,
                 ),
               ),
             ],
@@ -513,10 +504,9 @@ class _ProfileTabState extends State<ProfileTab> {
           child: Icon(
             icon,
             size: 18,
-            color:
-                isDark
-                    ? AppTheme.darkTextSecondary
-                    : AppTheme.lightTextSecondary,
+            color: isDark
+                ? AppTheme.darkTextSecondary
+                : AppTheme.lightTextSecondary,
           ),
         ),
         const SizedBox(width: 16),
@@ -528,10 +518,9 @@ class _ProfileTabState extends State<ProfileTab> {
                 title,
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  color:
-                      isDark
-                          ? AppTheme.darkTextSecondary
-                          : AppTheme.lightTextSecondary,
+                  color: isDark
+                      ? AppTheme.darkTextSecondary
+                      : AppTheme.lightTextSecondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -541,10 +530,9 @@ class _ProfileTabState extends State<ProfileTab> {
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color:
-                      isDark
-                          ? AppTheme.darkTextPrimary
-                          : AppTheme.lightTextPrimary,
+                  color: isDark
+                      ? AppTheme.darkTextPrimary
+                      : AppTheme.lightTextPrimary,
                 ),
               ),
             ],
@@ -574,8 +562,9 @@ class _ProfileTabState extends State<ProfileTab> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color:
-                      isDark ? AppTheme.darkBorder : AppTheme.lightBackground,
+                  color: isDark
+                      ? AppTheme.darkBorder
+                      : AppTheme.lightBackground,
                   borderRadius: BorderRadius.circular(28),
                   border: Border.all(
                     color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
@@ -585,10 +574,9 @@ class _ProfileTabState extends State<ProfileTab> {
                 child: Icon(
                   icon,
                   size: 18,
-                  color:
-                      isDark
-                          ? AppTheme.darkTextSecondary
-                          : AppTheme.lightTextSecondary,
+                  color: isDark
+                      ? AppTheme.darkTextSecondary
+                      : AppTheme.lightTextSecondary,
                 ),
               ),
               const SizedBox(width: 16),
@@ -601,10 +589,9 @@ class _ProfileTabState extends State<ProfileTab> {
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color:
-                            isDark
-                                ? AppTheme.darkTextPrimary
-                                : AppTheme.lightTextPrimary,
+                        color: isDark
+                            ? AppTheme.darkTextPrimary
+                            : AppTheme.lightTextPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -612,10 +599,9 @@ class _ProfileTabState extends State<ProfileTab> {
                       subtitle,
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        color:
-                            isDark
-                                ? AppTheme.darkTextSecondary
-                                : AppTheme.lightTextSecondary,
+                        color: isDark
+                            ? AppTheme.darkTextSecondary
+                            : AppTheme.lightTextSecondary,
                       ),
                     ),
                   ],
@@ -624,10 +610,9 @@ class _ProfileTabState extends State<ProfileTab> {
               Icon(
                 Icons.chevron_right,
                 size: 20,
-                color:
-                    isDark
-                        ? AppTheme.darkTextSecondary
-                        : AppTheme.lightTextSecondary,
+                color: isDark
+                    ? AppTheme.darkTextSecondary
+                    : AppTheme.lightTextSecondary,
               ),
             ],
           ),
@@ -649,21 +634,19 @@ class _ProfileTabState extends State<ProfileTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color:
-              isSelected
-                  ? (isDark
-                          ? AppTheme.darkPrimaryStart
-                          : AppTheme.lightPrimaryStart)
-                      .withOpacity(0.1)
-                  : (isDark ? AppTheme.darkBorder : AppTheme.lightBackground),
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color:
-                isSelected
-                    ? (isDark
+          color: isSelected
+              ? (isDark
                         ? AppTheme.darkPrimaryStart
                         : AppTheme.lightPrimaryStart)
-                    : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
+                    .withOpacity(0.1)
+              : (isDark ? AppTheme.darkBorder : AppTheme.lightBackground),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: isSelected
+                ? (isDark
+                      ? AppTheme.darkPrimaryStart
+                      : AppTheme.lightPrimaryStart)
+                : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -672,14 +655,13 @@ class _ProfileTabState extends State<ProfileTab> {
           children: [
             Icon(
               icon,
-              color:
-                  isSelected
-                      ? (isDark
-                          ? AppTheme.darkPrimaryStart
-                          : AppTheme.lightPrimaryStart)
-                      : (isDark
-                          ? AppTheme.darkTextSecondary
-                          : AppTheme.lightTextSecondary),
+              color: isSelected
+                  ? (isDark
+                        ? AppTheme.darkPrimaryStart
+                        : AppTheme.lightPrimaryStart)
+                  : (isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.lightTextSecondary),
               size: 20,
             ),
             const SizedBox(height: 6),
@@ -688,14 +670,13 @@ class _ProfileTabState extends State<ProfileTab> {
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color:
-                    isSelected
-                        ? (isDark
-                            ? AppTheme.darkPrimaryStart
-                            : AppTheme.lightPrimaryStart)
-                        : (isDark
-                            ? AppTheme.darkTextSecondary
-                            : AppTheme.lightTextSecondary),
+                color: isSelected
+                    ? (isDark
+                          ? AppTheme.darkPrimaryStart
+                          : AppTheme.lightPrimaryStart)
+                    : (isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary),
               ),
             ),
           ],

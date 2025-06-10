@@ -1,30 +1,83 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/class_model.dart';
 import '../services/supabase_service.dart';
+import '../services/cache_manager.dart';
 
-enum ClassProviderStatus { initial, loading, success, error }
+enum ClassProviderStatus { initial, loading, success, error, loaded }
 
 class ClassProvider extends ChangeNotifier {
   final SupabaseService _supabaseService;
+  final CacheManager _cacheManager = CacheManager();
 
   ClassProviderStatus _status = ClassProviderStatus.initial;
   List<ClassModel> _classes = [];
-  String? _errorMessage;
+  String? _error;
+  bool _isOffline = false;
 
-  ClassProvider(this._supabaseService);
+  ClassProvider(this._supabaseService) {
+    // Listen to connectivity changes
+    _cacheManager.connectivityStream.listen((isOnline) {
+      final wasOffline = _isOffline;
+      _isOffline = !isOnline;
+
+      // If we just came back online and had loaded classes before, refresh data
+      if (wasOffline && isOnline && _classes.isNotEmpty) {
+        _refreshClassesBasedOnRole();
+      }
+
+      notifyListeners();
+    });
+  }
 
   // Getters
   ClassProviderStatus get status => _status;
   List<ClassModel> get classes => _classes;
-  String? get errorMessage => _errorMessage;
+  String? get error => _error;
+  String? get errorMessage => _error;
+  bool get isOffline => _isOffline;
 
   // Get total student count for all lecturer classes
+  int _cachedStudentCount = 0;
+
   int get totalStudents {
+    if (isOffline && _cachedStudentCount > 0) {
+      // Return cached value if we're offline and have a cache
+      return _cachedStudentCount;
+    }
     int count = 0;
     for (var classItem in _classes) {
       count += classItem.studentCount;
     }
     return count;
+  }
+
+  // Helper method to refresh classes based on current role
+  // Load cached student count from SharedPreferences
+  Future<void> _loadCachedStudentCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _cachedStudentCount = prefs.getInt('cached_student_count') ?? 0;
+    } catch (e) {
+      print('Error loading cached student count: $e');
+    }
+  }
+
+  Future<void> _refreshClassesBasedOnRole() async {
+    // Load cached student count
+    await _loadCachedStudentCount();
+    // This is determined elsewhere and not easily accessible here
+    // For simplicity, we'll try both methods
+    try {
+      await loadLecturerClasses();
+    } catch (e) {
+      try {
+        await loadStudentClasses();
+      } catch (e) {
+        // If both fail, we're probably not authenticated
+        // Do nothing
+      }
+    }
   }
 
   // Load student counts for all classes
@@ -53,8 +106,15 @@ class ClassProvider extends ChangeNotifier {
   }) async {
     try {
       _status = ClassProviderStatus.loading;
-      _errorMessage = null;
+      _error = null;
       notifyListeners();
+
+      // Check if we're online
+      if (!_cacheManager.isOnline) {
+        throw Exception(
+          'Cannot create class while offline. Please check your internet connection and try again.',
+        );
+      }
 
       final createdClass = await _supabaseService.createClass(
         name: name,
@@ -65,11 +125,18 @@ class ClassProvider extends ChangeNotifier {
       );
 
       _classes.insert(0, createdClass); // Add to the beginning of the list
+
+      // Update cached classes
+      await _cacheManager.getClasses(
+        onlineDataFetcher: () async => _classes,
+        forceRefresh: true,
+      );
+
       _status = ClassProviderStatus.success;
       notifyListeners();
     } catch (e) {
       _status = ClassProviderStatus.error;
-      _errorMessage = e.toString();
+      _error = e.toString();
       notifyListeners();
     }
   }
@@ -85,8 +152,15 @@ class ClassProvider extends ChangeNotifier {
   }) async {
     try {
       _status = ClassProviderStatus.loading;
-      _errorMessage = null;
+      _error = null;
       notifyListeners();
+
+      // Check if we're online
+      if (!_cacheManager.isOnline) {
+        throw Exception(
+          'Cannot update class while offline. Please check your internet connection and try again.',
+        );
+      }
 
       final updatedClass = await _supabaseService.updateClass(
         classId: classId,
@@ -103,33 +177,86 @@ class ClassProvider extends ChangeNotifier {
         _classes[index] = updatedClass;
       }
 
+      // Update cached classes
+      await _cacheManager.getClasses(
+        onlineDataFetcher: () async => _classes,
+        forceRefresh: true,
+      );
+
       _status = ClassProviderStatus.success;
       notifyListeners();
     } catch (e) {
       _status = ClassProviderStatus.error;
-      _errorMessage = e.toString();
+      _error = e.toString();
       notifyListeners();
     }
   }
 
-  // Load lecturer's classes
+  // Load lecturer classes with caching
   Future<void> loadLecturerClasses() async {
     try {
       _status = ClassProviderStatus.loading;
-      _errorMessage = null;
-      notifyListeners();
 
-      final lecturerClasses = await _supabaseService.getLecturerClasses();
-      _classes = lecturerClasses;
-      _status = ClassProviderStatus.success;
+      // Load from cache first
+      final cachedClasses = await _cacheManager.getCachedClasses();
 
-      // Load student counts for each class
-      await loadStudentCounts();
+      if (cachedClasses.isNotEmpty) {
+        _classes = cachedClasses;
+        _status = ClassProviderStatus.loaded;
+        notifyListeners();
+      }
 
-      notifyListeners();
+      // Only fetch from network if online
+      if (_cacheManager.isOnline) {
+        _classes = await _cacheManager.getClasses(
+          onlineDataFetcher:
+              () async => await _supabaseService.getLecturerClasses(),
+          forceRefresh: false,
+        );
+
+        // Load student counts if online
+        await loadStudentCounts();
+
+        _status = ClassProviderStatus.loaded;
+        notifyListeners();
+      }
     } catch (e) {
+      print('Error loading lecturer classes: $e');
       _status = ClassProviderStatus.error;
-      _errorMessage = e.toString();
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  // Load student classes with caching
+  Future<void> loadStudentClasses() async {
+    try {
+      _status = ClassProviderStatus.loading;
+
+      // Load from cache first
+      final cachedClasses = await _cacheManager.getCachedClasses();
+
+      if (cachedClasses.isNotEmpty) {
+        _classes = cachedClasses;
+        _status = ClassProviderStatus.loaded;
+        notifyListeners();
+      }
+
+      // Only fetch from network if online
+      if (_cacheManager.isOnline) {
+        _classes = await _cacheManager.getClasses(
+          onlineDataFetcher:
+              () async => await _supabaseService.getStudentClasses(),
+          forceRefresh: false,
+        );
+
+        _status = ClassProviderStatus.loaded;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error loading student classes: $e');
+      _status = ClassProviderStatus.error;
+      _error = e.toString();
       notifyListeners();
     }
   }
@@ -138,41 +265,33 @@ class ClassProvider extends ChangeNotifier {
   Future<void> joinClass({required String classCode}) async {
     try {
       _status = ClassProviderStatus.loading;
-      _errorMessage = null;
+      _error = null;
       notifyListeners();
+
+      // Check if we're online
+      if (!_cacheManager.isOnline) {
+        throw Exception(
+          'Cannot join class while offline. Please check your internet connection and try again.',
+        );
+      }
 
       final joinedClass = await _supabaseService.joinClass(
         classCode: classCode,
       );
 
-      // Add joined class to the list if it doesn't exist already
-      if (!_classes.any((c) => c.id == joinedClass.id)) {
-        _classes.insert(0, joinedClass);
-      }
+      _classes.insert(0, joinedClass); // Add to the beginning of the list
+
+      // Update cached classes
+      await _cacheManager.getClasses(
+        onlineDataFetcher: () async => _classes,
+        forceRefresh: true,
+      );
 
       _status = ClassProviderStatus.success;
       notifyListeners();
     } catch (e) {
       _status = ClassProviderStatus.error;
-      _errorMessage = e.toString();
-      notifyListeners();
-    }
-  }
-
-  // Load student's joined classes
-  Future<void> loadStudentClasses() async {
-    try {
-      _status = ClassProviderStatus.loading;
-      _errorMessage = null;
-      notifyListeners();
-
-      final studentClasses = await _supabaseService.getStudentClasses();
-      _classes = studentClasses;
-      _status = ClassProviderStatus.success;
-      notifyListeners();
-    } catch (e) {
-      _status = ClassProviderStatus.error;
-      _errorMessage = e.toString();
+      _error = e.toString();
       notifyListeners();
     }
   }
@@ -181,19 +300,32 @@ class ClassProvider extends ChangeNotifier {
   Future<void> leaveClass(String classId) async {
     try {
       _status = ClassProviderStatus.loading;
-      _errorMessage = null;
+      _error = null;
       notifyListeners();
+
+      // Check if we're online
+      if (!_cacheManager.isOnline) {
+        throw Exception(
+          'Cannot leave class while offline. Please check your internet connection and try again.',
+        );
+      }
 
       await _supabaseService.leaveClass(classId);
 
       // Remove the class from the list
       _classes.removeWhere((c) => c.id == classId);
 
+      // Update cached classes
+      await _cacheManager.getClasses(
+        onlineDataFetcher: () async => _classes,
+        forceRefresh: true,
+      );
+
       _status = ClassProviderStatus.success;
       notifyListeners();
     } catch (e) {
       _status = ClassProviderStatus.error;
-      _errorMessage = e.toString();
+      _error = e.toString();
       notifyListeners();
     }
   }
@@ -202,19 +334,87 @@ class ClassProvider extends ChangeNotifier {
   Future<void> deleteClass(String classId) async {
     try {
       _status = ClassProviderStatus.loading;
-      _errorMessage = null;
+      _error = null;
       notifyListeners();
+
+      // Check if we're online
+      if (!_cacheManager.isOnline) {
+        throw Exception(
+          'Cannot delete class while offline. Please check your internet connection and try again.',
+        );
+      }
 
       await _supabaseService.deleteClass(classId);
 
       // Remove the class from the list
       _classes.removeWhere((c) => c.id == classId);
 
+      // Update cached classes
+      await _cacheManager.getClasses(
+        onlineDataFetcher: () async => _classes,
+        forceRefresh: true,
+      );
+
       _status = ClassProviderStatus.success;
       notifyListeners();
     } catch (e) {
       _status = ClassProviderStatus.error;
-      _errorMessage = e.toString();
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  // Force refresh classes
+  // Save student count to cache
+  Future<void> _saveCachedStudentCount() async {
+    try {
+      if (totalStudents > 0) {
+        _cachedStudentCount = totalStudents;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('cached_student_count', _cachedStudentCount);
+      }
+    } catch (e) {
+      print('Error saving cached student count: $e');
+    }
+  }
+
+  Future<void> refreshClasses({
+    required bool isLecturer,
+    bool showLoadingIndicator = true,
+  }) async {
+    try {
+      if (showLoadingIndicator) {
+        _status = ClassProviderStatus.loading;
+        notifyListeners();
+      }
+
+      if (isLecturer) {
+        _classes = await _cacheManager.getClasses(
+          onlineDataFetcher:
+              () async => await _supabaseService.getLecturerClasses(),
+          forceRefresh: true,
+        );
+
+        // Load student counts if online
+        if (_cacheManager.isOnline) {
+          await loadStudentCounts();
+
+          // Save student count for offline access
+          await _saveCachedStudentCount();
+        }
+      } else {
+        _classes = await _cacheManager.getClasses(
+          onlineDataFetcher:
+              () async => await _supabaseService.getStudentClasses(),
+          forceRefresh: true,
+        );
+      }
+
+      _status = ClassProviderStatus.success;
+      notifyListeners();
+    } catch (e) {
+      _status = ClassProviderStatus.error;
+      _error = e.toString();
       notifyListeners();
     }
   }
@@ -223,7 +423,13 @@ class ClassProvider extends ChangeNotifier {
   void reset() {
     _status = ClassProviderStatus.initial;
     _classes = [];
-    _errorMessage = null;
+    _error = null;
+    notifyListeners();
+  }
+
+  // Set offline status
+  void setOfflineStatus(bool offline) {
+    _isOffline = offline;
     notifyListeners();
   }
 }

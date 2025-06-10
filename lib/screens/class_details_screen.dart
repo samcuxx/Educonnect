@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as path;
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/class_model.dart';
 import '../models/user_model.dart';
 import '../models/announcement_model.dart';
@@ -20,6 +21,7 @@ import '../models/submission_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/class_provider.dart';
 import '../services/supabase_service.dart';
+import '../services/connectivity_service.dart';
 import '../utils/app_theme.dart';
 import 'submissions_screen.dart';
 
@@ -60,6 +62,8 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
   // Add submission download tracking
   Map<String, double> _submissionDownloadProgress = {};
   Map<String, String> _downloadedSubmissions = {};
+
+  bool _isOffline = false;
 
   @override
   void initState() {
@@ -111,7 +115,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
 
   // Load assignments for the class
   Future<void> _loadAssignments() async {
-    if (_isLoadingAssignments) return;
+    if (!mounted) return;
 
     setState(() {
       _isLoadingAssignments = true;
@@ -121,38 +125,66 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final supabaseService = authProvider.supabaseService;
 
+      // Load from cache first (this will show cached data immediately)
       final assignments = await supabaseService.getClassAssignments(
         widget.classModel.id,
+        loadFromCache: true,
       );
-
-      // If user is a student, check submission status
-      if (!authProvider.isLecturer) {
-        for (var assignment in assignments) {
-          final hasSubmitted = await supabaseService.hasSubmittedAssignment(
-            assignment.id,
-          );
-          setState(() {
-            _assignmentSubmissions[assignment.id] = hasSubmitted;
-          });
-        }
-      }
 
       if (mounted) {
         setState(() {
           _assignments = assignments;
           _isLoadingAssignments = false;
+          _isOffline = false;
         });
       }
+
+      // Then try to refresh from network without showing loading indicator
+      try {
+        // Try to get fresh data if we're online
+        final freshAssignments = await supabaseService.getClassAssignments(
+          widget.classModel.id,
+          loadFromCache: false,
+        );
+
+        if (mounted) {
+          setState(() {
+            _assignments = freshAssignments;
+            _isOffline = false;
+          });
+        }
+      } catch (e) {
+        // Silently fail when refreshing - we already have cached data
+        print('Silent error refreshing assignments: $e');
+        // Update offline status
+        _updateOfflineStatus(true);
+      }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingAssignments = false;
-        });
+      if (!mounted) return;
+
+      setState(() {
+        _isLoadingAssignments = false;
+      });
+
+      // Only show error if we couldn't load from cache
+      if (_assignments.isEmpty) {
+        String errorMessage = 'Failed to load assignments';
+        bool isOffline = false;
+
+        if (e.toString().contains('SocketException') ||
+            e.toString().contains('ClientException') ||
+            e.toString().contains('Failed host lookup')) {
+          errorMessage = 'You\'re offline. Showing cached data.';
+          isOffline = true;
+        }
+
+        _updateOfflineStatus(isOffline);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load assignments: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(errorMessage),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -215,6 +247,8 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
   }
 
   Future<void> _loadStudentsCount() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoadingCount = true;
     });
@@ -223,25 +257,46 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final supabaseService = authProvider.supabaseService;
 
+      // Try to get student count
       final count = await supabaseService.getClassStudentsCount(
         widget.classModel.id,
       );
 
-      setState(() {
-        _studentsCount = count;
-        _isLoadingCount = false;
-      });
+      if (mounted) {
+        setState(() {
+          _studentsCount = count;
+          _isLoadingCount = false;
+          _isOffline = false;
+        });
+      }
     } catch (e) {
       // Handle error
+      if (!mounted) return;
+
       setState(() {
         _isLoadingCount = false;
       });
 
-      if (mounted) {
+      String errorMessage = 'Failed to load students count';
+      bool isOffline = false;
+
+      // Check if the error is network-related
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('ClientException') ||
+          e.toString().contains('Failed host lookup')) {
+        errorMessage = 'You\'re offline. Using cached data.';
+        isOffline = true;
+      }
+
+      _updateOfflineStatus(isOffline);
+
+      // Only show error if we have no data
+      if (_studentsCount == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load students count: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(errorMessage),
+            backgroundColor: isOffline ? Colors.orange : Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -291,7 +346,10 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
     }
   }
 
+  // Load resources
   Future<void> _loadResources() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoadingResources = true;
     });
@@ -300,24 +358,66 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final supabaseService = authProvider.supabaseService;
 
+      // Load from cache first (this will show cached data immediately)
       final resources = await supabaseService.getClassResources(
         widget.classModel.id,
+        loadFromCache: true,
       );
 
-      setState(() {
-        _resources = resources;
-        _isLoadingResources = false;
-      });
+      if (mounted) {
+        setState(() {
+          _resources = resources;
+          _isLoadingResources = false;
+          _isOffline = false;
+        });
+      }
+
+      // Then try to refresh from network without showing loading indicator
+      try {
+        // Try to get fresh data if we're online
+        final freshResources = await supabaseService.getClassResources(
+          widget.classModel.id,
+          loadFromCache: false,
+        );
+
+        if (mounted) {
+          setState(() {
+            _resources = freshResources;
+            _isOffline = false;
+          });
+        }
+      } catch (e) {
+        // Silently fail when refreshing - we already have cached data
+        print('Silent error refreshing resources: $e');
+        // Update offline status
+        _updateOfflineStatus(true);
+      }
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _isLoadingResources = false;
       });
 
-      if (mounted) {
+      // Only show error if we couldn't load from cache
+      if (_resources.isEmpty && mounted) {
+        String errorMessage = 'Unable to load resources';
+        bool isOffline = false;
+
+        if (e.toString().contains('SocketException') ||
+            e.toString().contains('ClientException') ||
+            e.toString().contains('Failed host lookup')) {
+          errorMessage = 'You\'re offline. Showing cached data.';
+          isOffline = true;
+        }
+
+        _updateOfflineStatus(isOffline);
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load resources: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(errorMessage),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -1824,7 +1924,34 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
       return; // Already downloading
     }
 
+    // Check connectivity before attempting download
     try {
+      final connectivityService = Provider.of<ConnectivityService>(
+        context,
+        listen: false,
+      );
+      final isOnline = await connectivityService.checkConnectivity();
+
+      if (!isOnline) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You\'re offline. Please connect to the internet to download resources.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'DISMISS',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+        return;
+      }
+
       // Initialize progress
       setState(() {
         _downloadProgress[resource.id] = 0.0;
@@ -1902,14 +2029,36 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
         _downloadProgress.remove(resource.id);
       });
 
+      // Show more specific error message based on the type of error
+      String errorMessage = 'Failed to download ${resource.title}';
+      Color errorColor = Colors.red;
+
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('ClientException') ||
+          e.toString().contains('Failed host lookup')) {
+        errorMessage =
+            'Download failed: You appear to be offline. Please check your internet connection.';
+        errorColor = Colors.orange;
+      } else if (e.toString().contains('Permission')) {
+        errorMessage = 'Download failed: Storage permission denied.';
+      } else if (e.toString().contains('404')) {
+        errorMessage =
+            'Download failed: The file no longer exists on the server.';
+      }
+
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Failed to download ${resource.title}: ${e.toString()}',
-          ),
-          backgroundColor: Colors.red,
+          content: Text(errorMessage),
+          backgroundColor: errorColor,
           duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'DISMISS',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
     }
@@ -2030,7 +2179,34 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
       return; // Already downloading
     }
 
+    // Check connectivity before attempting download
     try {
+      final connectivityService = Provider.of<ConnectivityService>(
+        context,
+        listen: false,
+      );
+      final isOnline = await connectivityService.checkConnectivity();
+
+      if (!isOnline) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You\'re offline. Please connect to the internet to download assignments.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'DISMISS',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+        return;
+      }
+
       // Initialize progress
       setState(() {
         _assignmentDownloadProgress[assignment.id] = 0.0;
@@ -2111,14 +2287,36 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
         _assignmentDownloadProgress.remove(assignment.id);
       });
 
+      // Show more specific error message based on the type of error
+      String errorMessage = 'Failed to download assignment';
+      Color errorColor = Colors.red;
+
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('ClientException') ||
+          e.toString().contains('Failed host lookup')) {
+        errorMessage =
+            'Download failed: You appear to be offline. Please check your internet connection.';
+        errorColor = Colors.orange;
+      } else if (e.toString().contains('Permission')) {
+        errorMessage = 'Download failed: Storage permission denied.';
+      } else if (e.toString().contains('404')) {
+        errorMessage =
+            'Download failed: The file no longer exists on the server.';
+      }
+
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Failed to download ${assignment.title}: ${e.toString()}',
-          ),
-          backgroundColor: Colors.red,
+          content: Text(errorMessage),
+          backgroundColor: errorColor,
           duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'DISMISS',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
     }
@@ -2220,7 +2418,34 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
       return; // Already downloading or no file URL
     }
 
+    // Check connectivity before attempting download
     try {
+      final connectivityService = Provider.of<ConnectivityService>(
+        context,
+        listen: false,
+      );
+      final isOnline = await connectivityService.checkConnectivity();
+
+      if (!isOnline) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You\'re offline. Please connect to the internet to download submissions.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'DISMISS',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+        return;
+      }
+
       // Initialize progress
       setState(() {
         _submissionDownloadProgress[submission.id] = 0.0;
@@ -2303,12 +2528,36 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
         _submissionDownloadProgress.remove(submission.id);
       });
 
+      // Show more specific error message based on the type of error
+      String errorMessage = 'Failed to download submission';
+      Color errorColor = Colors.red;
+
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('ClientException') ||
+          e.toString().contains('Failed host lookup')) {
+        errorMessage =
+            'Download failed: You appear to be offline. Please check your internet connection.';
+        errorColor = Colors.orange;
+      } else if (e.toString().contains('Permission')) {
+        errorMessage = 'Download failed: Storage permission denied.';
+      } else if (e.toString().contains('404')) {
+        errorMessage =
+            'Download failed: The file no longer exists on the server.';
+      }
+
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to download submission: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          content: Text(errorMessage),
+          backgroundColor: errorColor,
           duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'DISMISS',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
     }
@@ -4157,6 +4406,41 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
 
   // Submit an assignment (for students)
   Future<void> _submitAssignment(AssignmentModel assignment) async {
+    // Check if device is offline first
+    bool isOffline = false;
+    try {
+      final connectivity = Connectivity();
+      final connectivityResults = await connectivity.checkConnectivity();
+      isOffline =
+          !connectivityResults.any(
+            (result) => result != ConnectivityResult.none,
+          );
+    } catch (e) {
+      isOffline = true; // Assume offline if connectivity check fails
+      print('Error checking connectivity: $e');
+    }
+
+    // If offline, show message and return
+    if (isOffline) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You are offline. Please connect to the internet to submit assignments.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     final formKey = GlobalKey<FormState>();
     File? selectedFile;
     String? fileName;
@@ -4938,8 +5222,9 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                         CircleAvatar(
                                           radius: 12,
                                           backgroundColor: (isDark
-                                                  ? AppTheme.darkPrimaryStart
-                                                  : AppTheme.lightPrimaryStart)
+                                                  ? AppTheme.darkSecondaryStart
+                                                  : AppTheme
+                                                      .lightSecondaryStart)
                                               .withOpacity(0.1),
                                           child: Text(
                                             assignment.assignedByName[0]
@@ -4950,9 +5235,9 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                               color:
                                                   isDark
                                                       ? AppTheme
-                                                          .darkPrimaryStart
+                                                          .darkSecondaryStart
                                                       : AppTheme
-                                                          .lightPrimaryStart,
+                                                          .lightSecondaryStart,
                                             ),
                                           ),
                                         ),
@@ -5320,5 +5605,11 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
         ),
       ],
     );
+  }
+
+  void _updateOfflineStatus(bool isOffline) {
+    setState(() {
+      _isOffline = isOffline;
+    });
   }
 }

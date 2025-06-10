@@ -11,6 +11,10 @@ import '../models/submission_model.dart';
 import 'package:path/path.dart' as path;
 import '../utils/app_config.dart';
 import 'mnotify_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'local_storage_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class SupabaseService {
   final SupabaseClient _client;
@@ -319,11 +323,20 @@ END;
             await _client.from('profiles').select().eq('id', userId).single();
 
         // Create appropriate user object based on user_type
+        app_models.User? user;
         if (userData['user_type'] == 'student') {
-          return app_models.Student.fromJson(userData);
+          user = app_models.Student.fromJson(userData);
         } else if (userData['user_type'] == 'lecturer') {
-          return app_models.Lecturer.fromJson(userData);
+          user = app_models.Lecturer.fromJson(userData);
         }
+
+        // Save user to local storage for offline access
+        if (user != null) {
+          final localStorageService = LocalStorageService();
+          await localStorageService.saveUser(user);
+        }
+
+        return user;
       }
       return null;
     } catch (e) {
@@ -333,12 +346,46 @@ END;
 
   // Sign out the current user
   Future<void> signOut() async {
+    // Clear all local storage data
+    final localStorageService = LocalStorageService();
+    await localStorageService.clearAll();
+
+    // Then sign out from Supabase
     await _client.auth.signOut();
   }
 
-  // Get current user with improved session persistence
+  // Get current user with improved session persistence and offline support
   Future<app_models.User?> getCurrentUser() async {
     try {
+      // Check connectivity status
+      bool isOnline = true;
+      try {
+        final connectivity = Connectivity();
+        final connectivityResults = await connectivity.checkConnectivity();
+        isOnline = connectivityResults.any(
+          (result) => result != ConnectivityResult.none,
+        );
+      } catch (e) {
+        isOnline = false; // Assume offline if connectivity check fails
+        print('Error checking connectivity: $e');
+      }
+
+      // If we're offline, try to get the user from local storage
+      if (!isOnline) {
+        print('Device is offline, trying to get user from local storage');
+        final localStorageService = LocalStorageService();
+        final cachedUser = localStorageService.getUser();
+
+        if (cachedUser != null) {
+          print('Found user in local storage: ${cachedUser.fullName}');
+          return cachedUser;
+        } else {
+          print('No user found in local storage while offline');
+          return null;
+        }
+      }
+
+      // If we're online, continue with normal authentication flow
       // First check if we have a valid session
       final session = await _client.auth.currentSession;
 
@@ -365,15 +412,31 @@ END;
               .eq('id', currentUser.id)
               .single();
 
+      app_models.User? user;
       if (userData['user_type'] == 'student') {
-        return app_models.Student.fromJson(userData);
+        user = app_models.Student.fromJson(userData);
       } else if (userData['user_type'] == 'lecturer') {
-        return app_models.Lecturer.fromJson(userData);
+        user = app_models.Lecturer.fromJson(userData);
       }
-      return null;
+
+      // Save the user to local storage for offline access
+      if (user != null) {
+        final localStorageService = LocalStorageService();
+        await localStorageService.saveUser(user);
+      }
+
+      return user;
     } catch (e) {
       print('Error recovering user session: $e');
-      return null;
+
+      // Try to get user from local storage as fallback
+      try {
+        final localStorageService = LocalStorageService();
+        return localStorageService.getUser();
+      } catch (storageError) {
+        print('Error getting user from local storage: $storageError');
+        return null;
+      }
     }
   }
 
@@ -1278,72 +1341,64 @@ END;
   }
 
   // Get resources for a class
-  Future<List<ResourceModel>> getClassResources(String classId) async {
+  Future<List<ResourceModel>> getClassResources(
+    String classId, {
+    bool loadFromCache = true,
+  }) async {
     try {
-      final currentUser = _client.auth.currentUser;
-      if (currentUser == null) {
-        throw Exception('User is not authenticated');
-      }
+      // Try to load from cache first if loadFromCache is true
+      if (loadFromCache) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final cachedJson = prefs.getString('cached_resources_$classId');
 
-      // Check if user has access to the class
-      bool hasAccess = false;
-
-      // Check if user is the lecturer
-      final lecturerCheck = await _client
-          .from('classes')
-          .select()
-          .eq('id', classId)
-          .eq('created_by', currentUser.id);
-
-      if ((lecturerCheck as List).isNotEmpty) {
-        hasAccess = true;
-      } else {
-        // Check if user is a student in the class
-        final studentCheck = await _client
-            .from('class_members')
-            .select()
-            .eq('class_id', classId)
-            .eq('user_id', currentUser.id);
-
-        if ((studentCheck as List).isNotEmpty) {
-          hasAccess = true;
+          if (cachedJson != null) {
+            print('Loaded resources from cache for class $classId');
+            final List<dynamic> decodedData = jsonDecode(cachedJson);
+            return decodedData
+                .map((item) => ResourceModel.fromJson(item))
+                .toList();
+          }
+        } catch (e) {
+          print('Error loading resources from cache: $e');
+          // Continue to try online if cache fails
         }
       }
 
-      if (!hasAccess) {
-        throw Exception('You do not have access to this class');
-      }
-
-      // Fetch resources
-      final resources = await _client
+      // Use a direct query without join to handle database schema issues
+      final response = await _client
           .from('resources')
-          .select()
+          .select('*')
           .eq('class_id', classId)
           .order('created_at', ascending: false);
 
-      // Create a list to store the result
-      final List<ResourceModel> result = [];
+      final resources =
+          (response as List)
+              .map((resource) => ResourceModel.fromJson(resource))
+              .toList();
 
-      // Process each resource
-      for (final resource in resources) {
-        // Fetch the uploader's profile information
-        final uploaderProfile =
-            await _client
-                .from('profiles')
-                .select('full_name')
-                .eq('id', resource['uploaded_by'])
-                .single();
-
-        // Create a resource model with the profile data
-        final resourceData = {...resource};
-        resourceData['uploaded_by_name'] = uploaderProfile['full_name'];
-
-        result.add(ResourceModel.fromJson(resourceData));
+      // Save to cache for offline use
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'cached_resources_$classId',
+          jsonEncode(resources),
+        );
+        print('Saved resources to cache for class $classId');
+      } catch (e) {
+        print('Error saving resources to cache: $e');
       }
 
-      return result;
+      return resources;
     } catch (e) {
-      rethrow;
+      print('Error in getClassResources: $e');
+
+      // If we got an error and loadFromCache is false, try to load from cache as fallback
+      if (!loadFromCache) {
+        return getClassResources(classId, loadFromCache: true);
+      }
+
+      throw _handleError(e, 'getClassResources');
     }
   }
 
@@ -1690,110 +1745,64 @@ END;
   }
 
   // Get assignments for a class
-  Future<List<AssignmentModel>> getClassAssignments(String classId) async {
+  Future<List<AssignmentModel>> getClassAssignments(
+    String classId, {
+    bool loadFromCache = true,
+  }) async {
     try {
-      final currentUser = _client.auth.currentUser;
-      if (currentUser == null) {
-        throw Exception('User is not authenticated');
-      }
+      // Try to load from cache first if loadFromCache is true
+      if (loadFromCache) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final cachedJson = prefs.getString('cached_assignments_$classId');
 
-      // Check if user has access to the class
-      bool hasAccess = false;
-
-      // Check if user is the lecturer
-      final lecturerCheck = await _client
-          .from('classes')
-          .select()
-          .eq('id', classId)
-          .eq('created_by', currentUser.id);
-
-      if ((lecturerCheck as List).isNotEmpty) {
-        hasAccess = true;
-      } else {
-        // Check if user is a student in the class
-        final studentCheck = await _client
-            .from('class_members')
-            .select()
-            .eq('class_id', classId)
-            .eq('user_id', currentUser.id);
-
-        if ((studentCheck as List).isNotEmpty) {
-          hasAccess = true;
+          if (cachedJson != null) {
+            print('Loaded assignments from cache for class $classId');
+            final List<dynamic> decodedData = jsonDecode(cachedJson);
+            return decodedData
+                .map((item) => AssignmentModel.fromJson(item))
+                .toList();
+          }
+        } catch (e) {
+          print('Error loading assignments from cache: $e');
+          // Continue to try online if cache fails
         }
       }
 
-      if (!hasAccess) {
-        throw Exception('You do not have access to this class');
-      }
-
-      // Fetch assignments
-      final assignments = await _client
+      // Use a direct query without join to handle database schema issues
+      final response = await _client
           .from('assignments')
-          .select()
+          .select('*')
           .eq('class_id', classId)
           .order('created_at', ascending: false);
 
-      // Create a list to store the result
-      final List<AssignmentModel> result = [];
+      final assignments =
+          (response as List)
+              .map((assignment) => AssignmentModel.fromJson(assignment))
+              .toList();
 
-      // Process each assignment
-      for (final assignment in assignments) {
-        // Fetch the assigner's profile information
-        final assignerProfile =
-            await _client
-                .from('profiles')
-                .select('full_name')
-                .eq('id', assignment['assigned_by'])
-                .single();
-
-        // Create an assignment model with the profile data
-        final assignmentData = {...assignment};
-        assignmentData['assigned_by_name'] = assignerProfile['full_name'];
-
-        // Determine file type
-        if (assignment['file_url'] != null) {
-          final fileUrl = assignment['file_url'] as String;
-          final fileExtension = fileUrl.split('.').last.toLowerCase();
-          String fileType = 'Document';
-
-          switch (fileExtension.toLowerCase()) {
-            case 'pdf':
-              fileType = 'PDF';
-              break;
-            case 'doc':
-            case 'docx':
-              fileType = 'Word';
-              break;
-            case 'xls':
-            case 'xlsx':
-              fileType = 'Excel';
-              break;
-            case 'ppt':
-            case 'pptx':
-              fileType = 'PowerPoint';
-              break;
-            case 'jpg':
-            case 'jpeg':
-            case 'png':
-            case 'gif':
-              fileType = 'Image';
-              break;
-            case 'txt':
-              fileType = 'Text';
-              break;
-          }
-
-          assignmentData['file_type'] = fileType;
-        } else {
-          assignmentData['file_type'] = 'None';
-        }
-
-        result.add(AssignmentModel.fromJson(assignmentData));
+      // Save to cache for offline use
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'cached_assignments_$classId',
+          jsonEncode(assignments),
+        );
+        print('Saved assignments to cache for class $classId');
+      } catch (e) {
+        print('Error saving assignments to cache: $e');
       }
 
-      return result;
+      return assignments;
     } catch (e) {
-      rethrow;
+      print('Error in getClassAssignments: $e');
+
+      // If we got an error and loadFromCache is false, try to load from cache as fallback
+      if (!loadFromCache) {
+        return getClassAssignments(classId, loadFromCache: true);
+      }
+
+      throw _handleError(e, 'getClassAssignments');
     }
   }
 
@@ -2119,5 +2128,26 @@ END;
     } catch (e) {
       rethrow;
     }
+  }
+
+  // Helper method to handle errors
+  dynamic _handleError(dynamic error, String operation) {
+    print('Error in $operation: $error');
+
+    // Convert technical errors to user-friendly messages
+    if (error.toString().contains('SocketException') ||
+        error.toString().contains('ClientException') ||
+        error.toString().contains('Failed host lookup')) {
+      return Exception('Please check your internet connection and try again.');
+    }
+
+    // Handle authentication errors
+    if (error.toString().contains('JWTExpired') ||
+        error.toString().contains('token is expired')) {
+      return Exception('Your session has expired. Please sign in again.');
+    }
+
+    // For other errors, return the original error
+    return error;
   }
 }

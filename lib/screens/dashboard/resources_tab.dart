@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as path;
 import 'package:intl/intl.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/gradient_container.dart';
@@ -42,7 +43,9 @@ class _ResourcesTabState extends State<ResourcesTab>
   // Loading states
   bool _isLoading = false;
   bool _isInitialLoad = true;
+  bool _isOfflineMode = false;
   String? _error;
+  String? _lastUpdated;
 
   // Download tracking
   Map<String, double> _downloadProgress = {};
@@ -127,55 +130,413 @@ class _ResourcesTabState extends State<ResourcesTab>
       final supabaseService = authProvider.supabaseService;
       final isLecturer = authProvider.isLecturer;
 
-      // Load classes
-      final classes =
-          isLecturer
-              ? await supabaseService.getLecturerClasses()
-              : await supabaseService.getStudentClasses();
+      // Check connectivity status first
+      bool isOnline = true;
+      try {
+        final connectivity = Connectivity();
+        final connectivityResults = await connectivity.checkConnectivity();
+        isOnline = connectivityResults.any(
+          (result) => result != ConnectivityResult.none,
+        );
+      } catch (e) {
+        isOnline = false;
+        print('Error checking connectivity: $e');
+      }
 
-      // Load resources and assignments for each class
+      // Update offline mode state
+      setState(() {
+        _isOfflineMode = !isOnline;
+      });
+
+      // If offline, load from cache only
+      if (!isOnline) {
+        final hasCachedData = await _loadFromCache();
+
+        setState(() {
+          _isLoading = false;
+          if (!hasCachedData) {
+            _error =
+                "You're offline. Connect to the internet to load your resources.";
+          }
+        });
+        return;
+      }
+
+      // Online: First load from cache for immediate display, then refresh from network
+      final hasCachedData = await _loadFromCache();
+
+      if (hasCachedData) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+
+      // Now load fresh data from network
+      try {
+        // Load classes
+        List<ClassModel> classes;
+        if (isLecturer) {
+          classes = await supabaseService.getLecturerClasses();
+        } else {
+          classes = await supabaseService.getStudentClasses();
+        }
+
+        // For each class, load resources
+        final resourcesByClass = <String, List<ResourceModel>>{};
+        final assignmentsByClass = <String, List<AssignmentModel>>{};
+        final allResources = <ResourceModel>[];
+        final allAssignments = <AssignmentModel>[];
+
+        for (final classModel in classes) {
+          try {
+            final resources = await supabaseService.getClassResources(
+              classModel.id,
+            );
+            resourcesByClass[classModel.id] = resources;
+            allResources.addAll(resources);
+          } catch (e) {
+            print('Error loading resources for class ${classModel.id}: $e');
+          }
+
+          try {
+            final assignments = await supabaseService.getClassAssignments(
+              classModel.id,
+            );
+            assignmentsByClass[classModel.id] = assignments;
+            allAssignments.addAll(assignments);
+          } catch (e) {
+            print('Error loading assignments for class ${classModel.id}: $e');
+          }
+        }
+
+        // Update cache with the latest data
+        await _saveToCache(
+          classes,
+          allResources,
+          allAssignments,
+          resourcesByClass,
+          assignmentsByClass,
+        );
+
+        // If we're still mounted, update UI with fresh data
+        if (mounted) {
+          setState(() {
+            _classes = classes;
+            _resources = allResources;
+            _assignments = allAssignments;
+            _resourcesByClass = resourcesByClass;
+            _assignmentsByClass = assignmentsByClass;
+            _isLoading = false;
+            _isOfflineMode = false;
+            _lastUpdated = DateTime.now().toString();
+          });
+        }
+      } catch (e) {
+        print('Error refreshing data from network: $e');
+        // If refresh fails but we have cached data, just show that
+        if (hasCachedData) {
+          setState(() {
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _isLoading = false;
+            _error = 'Error loading data: ${e.toString()}';
+          });
+        }
+      }
+    } catch (e) {
+      // General error handling
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+
+          if (_classes.isEmpty && _resources.isEmpty && _assignments.isEmpty) {
+            if (e.toString().contains('SocketException') ||
+                e.toString().contains('ClientException') ||
+                e.toString().contains('Failed host lookup')) {
+              _error =
+                  "You're offline. Connect to the internet to load your resources.";
+              _isOfflineMode = true;
+            } else {
+              _error = 'Error: ${e.toString()}';
+            }
+          } else {
+            // If we have cached data, just update offline status
+            if (e.toString().contains('SocketException') ||
+                e.toString().contains('ClientException') ||
+                e.toString().contains('Failed host lookup')) {
+              _isOfflineMode = true;
+            }
+          }
+        });
+      }
+      print('Error loading data: $e');
+    }
+  }
+
+  // Load data from cache
+  Future<bool> _loadFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Load classes from cache
+      final classesJson = prefs.getString('cached_classes');
+      if (classesJson != null) {
+        final classesList = json.decode(classesJson) as List;
+        final classes =
+            classesList
+                .cast<Map<String, dynamic>>()
+                .map((e) => ClassModel.fromJson(e))
+                .toList();
+
+        // Load resources from cache
+        final resourcesJson = prefs.getString('cached_resources');
+        final List<ResourceModel> resources = [];
+        if (resourcesJson != null) {
+          final resourcesList = json.decode(resourcesJson) as List;
+          resources.addAll(
+            resourcesList
+                .cast<Map<String, dynamic>>()
+                .map((e) => ResourceModel.fromJson(e))
+                .toList(),
+          );
+        }
+
+        // Load assignments from cache
+        final assignmentsJson = prefs.getString('cached_assignments');
+        final List<AssignmentModel> assignments = [];
+        if (assignmentsJson != null) {
+          final assignmentsList = json.decode(assignmentsJson) as List;
+          assignments.addAll(
+            assignmentsList
+                .cast<Map<String, dynamic>>()
+                .map((e) => AssignmentModel.fromJson(e))
+                .toList(),
+          );
+        }
+
+        // Get last update time
+        final lastUpdated = prefs.getString('resources_last_updated');
+
+        // Rebuild data maps
+        final resourcesByClass = <String, List<ResourceModel>>{};
+        final assignmentsByClass = <String, List<AssignmentModel>>{};
+
+        for (final resource in resources) {
+          resourcesByClass[resource.classId] =
+              resourcesByClass[resource.classId] ?? [];
+          resourcesByClass[resource.classId]!.add(resource);
+        }
+
+        for (final assignment in assignments) {
+          assignmentsByClass[assignment.classId] =
+              assignmentsByClass[assignment.classId] ?? [];
+          assignmentsByClass[assignment.classId]!.add(assignment);
+        }
+
+        setState(() {
+          _classes = classes;
+          _resources = resources;
+          _assignments = assignments;
+          _resourcesByClass = resourcesByClass;
+          _assignmentsByClass = assignmentsByClass;
+          _isLoading = false;
+          _isInitialLoad = false;
+          _isOfflineMode = true;
+          _lastUpdated = lastUpdated;
+        });
+
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      print('Error loading from cache: $e');
+      return false;
+    }
+  }
+
+  // Save data to cache for offline use
+  Future<void> _saveToCache(
+    List<ClassModel> classes,
+    List<ResourceModel> resources,
+    List<AssignmentModel> assignments,
+    Map<String, List<ResourceModel>> resourcesByClass,
+    Map<String, List<AssignmentModel>> assignmentsByClass,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Save classes
+      final classesJson = json.encode(classes.map((e) => e.toJson()).toList());
+      await prefs.setString('cached_classes', classesJson);
+
+      // Save resources
+      final resourcesJson = json.encode(
+        resources.map((e) => e.toJson()).toList(),
+      );
+      await prefs.setString('cached_resources', resourcesJson);
+
+      // Save assignments
+      final assignmentsJson = json.encode(
+        assignments.map((e) => e.toJson()).toList(),
+      );
+      await prefs.setString('cached_assignments', assignmentsJson);
+
+      // Save last update timestamp
+      await prefs.setString(
+        'resources_last_updated',
+        DateTime.now().toIso8601String(),
+      );
+
+      print('Saved data to cache for offline use');
+    } catch (e) {
+      print('Error saving to cache: $e');
+    }
+  }
+
+  // Refresh all data (force refresh from server)
+  Future<void> _refreshAll() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final supabaseService = authProvider.supabaseService;
+      final isLecturer = authProvider.isLecturer;
+
+      // Check connectivity status
+      bool isOnline = true;
+      try {
+        final connectivity = Connectivity();
+        final connectivityResults = await connectivity.checkConnectivity();
+        isOnline = connectivityResults.any(
+          (result) => result != ConnectivityResult.none,
+        );
+      } catch (e) {
+        isOnline = false;
+        print('Error checking connectivity: $e');
+      }
+
+      // Update offline mode state
+      setState(() {
+        _isOfflineMode = !isOnline;
+      });
+
+      // If offline, show error or use cached data
+      if (!isOnline) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("You're offline. Showing cached data."),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      // Online: load fresh data directly from network
+      // Load classes
+      List<ClassModel> classes;
+      if (isLecturer) {
+        classes = await supabaseService.getLecturerClasses();
+      } else {
+        classes = await supabaseService.getStudentClasses();
+      }
+
+      // For each class, load resources
       final resourcesByClass = <String, List<ResourceModel>>{};
       final assignmentsByClass = <String, List<AssignmentModel>>{};
       final allResources = <ResourceModel>[];
       final allAssignments = <AssignmentModel>[];
 
       for (final classModel in classes) {
-        // Load resources for this class
-        final classResources = await supabaseService.getClassResources(
-          classModel.id,
-        );
-        resourcesByClass[classModel.id] = classResources;
-        allResources.addAll(classResources);
+        try {
+          final resources = await supabaseService.getClassResources(
+            classModel.id,
+            loadFromCache: false, // Force load from network
+          );
+          resourcesByClass[classModel.id] = resources;
+          allResources.addAll(resources);
+        } catch (e) {
+          print('Error loading resources for class ${classModel.id}: $e');
+        }
 
-        // Load assignments for this class
-        final classAssignments = await supabaseService.getClassAssignments(
-          classModel.id,
-        );
-        assignmentsByClass[classModel.id] = classAssignments;
-        allAssignments.addAll(classAssignments);
+        try {
+          final assignments = await supabaseService.getClassAssignments(
+            classModel.id,
+            loadFromCache: false, // Force load from network
+          );
+          assignmentsByClass[classModel.id] = assignments;
+          allAssignments.addAll(assignments);
+        } catch (e) {
+          print('Error loading assignments for class ${classModel.id}: $e');
+        }
       }
 
-      setState(() {
-        _classes = classes;
-        _resources = allResources;
-        _assignments = allAssignments;
-        _resourcesByClass = resourcesByClass;
-        _assignmentsByClass = assignmentsByClass;
-        _isLoading = false;
-        _isInitialLoad = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-        _isInitialLoad = false;
-      });
-    }
-  }
+      // Update cache with the latest data
+      await _saveToCache(
+        classes,
+        allResources,
+        allAssignments,
+        resourcesByClass,
+        assignmentsByClass,
+      );
 
-  // Refresh all data (force refresh from server)
-  Future<void> _refreshAll() async {
-    await _loadAllData();
+      // If we're still mounted, update UI with fresh data
+      if (mounted) {
+        setState(() {
+          _classes = classes;
+          _resources = allResources;
+          _assignments = allAssignments;
+          _resourcesByClass = resourcesByClass;
+          _assignmentsByClass = assignmentsByClass;
+          _isLoading = false;
+          _isOfflineMode = false;
+          _lastUpdated = DateTime.now().toString();
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Resources refreshed successfully"),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Handle errors
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        final isOffline =
+            e.toString().contains('SocketException') ||
+            e.toString().contains('ClientException') ||
+            e.toString().contains('Failed host lookup');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isOffline
+                  ? "You're offline. Unable to refresh."
+                  : "Error refreshing: ${e.toString()}",
+            ),
+            backgroundColor: isOffline ? Colors.orange : Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      print('Error refreshing data: $e');
+    }
   }
 
   // Load downloaded files info
@@ -277,6 +638,40 @@ class _ResourcesTabState extends State<ResourcesTab>
     }
 
     try {
+      // Check connectivity first
+      bool isOnline = true;
+      try {
+        final connectivity = Connectivity();
+        final connectivityResults = await connectivity.checkConnectivity();
+        isOnline = connectivityResults.any(
+          (result) => result != ConnectivityResult.none,
+        );
+      } catch (e) {
+        isOnline = false;
+        print('Error checking connectivity: $e');
+      }
+
+      // If offline, show error and return
+      if (!isOnline) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'You\'re offline. Connect to the internet to download resources.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () {},
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
       setState(() {
         _downloadProgress[resource.id] = 0.0;
       });
@@ -344,12 +739,19 @@ class _ResourcesTabState extends State<ResourcesTab>
       });
 
       if (mounted) {
+        final isOffline =
+            e.toString().contains('SocketException') ||
+            e.toString().contains('ClientException') ||
+            e.toString().contains('Failed host lookup');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to download ${resource.title}: ${e.toString()}',
+              isOffline
+                  ? 'Download failed: You\'re offline. Please connect to the internet and try again.'
+                  : 'Failed to download ${resource.title}: ${e.toString()}',
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: isOffline ? Colors.orange : Colors.red,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -403,6 +805,40 @@ class _ResourcesTabState extends State<ResourcesTab>
     }
 
     try {
+      // Check connectivity first
+      bool isOnline = true;
+      try {
+        final connectivity = Connectivity();
+        final connectivityResults = await connectivity.checkConnectivity();
+        isOnline = connectivityResults.any(
+          (result) => result != ConnectivityResult.none,
+        );
+      } catch (e) {
+        isOnline = false;
+        print('Error checking connectivity: $e');
+      }
+
+      // If offline, show error and return
+      if (!isOnline) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'You\'re offline. Connect to the internet to download assignments.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () {},
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
       setState(() {
         _assignmentDownloadProgress[assignment.id] = 0.0;
       });
@@ -473,12 +909,19 @@ class _ResourcesTabState extends State<ResourcesTab>
       });
 
       if (mounted) {
+        final isOffline =
+            e.toString().contains('SocketException') ||
+            e.toString().contains('ClientException') ||
+            e.toString().contains('Failed host lookup');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to download ${assignment.title}: ${e.toString()}',
+              isOffline
+                  ? 'Download failed: You\'re offline. Please connect to the internet and try again.'
+                  : 'Failed to download ${assignment.title}: ${e.toString()}',
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: isOffline ? Colors.orange : Colors.red,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -653,6 +1096,37 @@ class _ResourcesTabState extends State<ResourcesTab>
                 ),
               ),
               const Spacer(),
+              if (_isOfflineMode)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.offline_bolt,
+                        size: 14,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Offline',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               if (_isLoading)
                 SizedBox(
                   width: 20,
@@ -686,6 +1160,19 @@ class _ResourcesTabState extends State<ResourcesTab>
                 ),
             ],
           ),
+
+          if (_isOfflineMode && _lastUpdated != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Showing cached data from ${_formatLastUpdated(_lastUpdated!)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
 
           const SizedBox(height: 16),
 
@@ -775,30 +1262,41 @@ class _ResourcesTabState extends State<ResourcesTab>
   }
 
   Widget _buildErrorState(BuildContext context, bool isLecturer, bool isDark) {
+    final bool isOfflineError =
+        _error != null &&
+        (_error!.contains("You're offline") ||
+            _error!.contains("Failed host lookup") ||
+            _error!.contains("SocketException") ||
+            _error!.contains("ClientException"));
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            Icon(
+              isOfflineError ? Icons.wifi_off_rounded : Icons.error_outline,
+              size: 64,
+              color: isOfflineError ? Colors.orange[300] : Colors.red[300],
+            ),
             const SizedBox(height: 16),
             Text(
-              'Error Loading Resources',
-              style: TextStyle(
+              isOfflineError ? "You're Offline" : "Something Went Wrong",
+              style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color:
-                    isDark
-                        ? AppTheme.darkTextPrimary
-                        : AppTheme.lightTextPrimary,
+                color: isOfflineError ? Colors.orange[700] : Colors.red[700],
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              _error!,
+              isOfflineError
+                  ? "Connect to the internet to view your resources"
+                  : _error ?? "An error occurred loading your resources",
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: GoogleFonts.inter(
+                fontSize: 16,
                 color:
                     isDark
                         ? AppTheme.darkTextSecondary
@@ -807,28 +1305,16 @@ class _ResourcesTabState extends State<ResourcesTab>
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () {
-                _clearError();
-                _refreshAll();
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
+              icon: Icon(Icons.refresh),
+              label: Text(isOfflineError ? "Try Again When Online" : "Retry"),
+              onPressed: _refreshAll,
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isLecturer
-                        ? (isDark
-                            ? AppTheme.darkSecondaryStart
-                            : AppTheme.lightSecondaryStart)
-                        : (isDark
-                            ? AppTheme.darkPrimaryStart
-                            : AppTheme.lightPrimaryStart),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(28),
-                ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
                 ),
               ),
             ),
@@ -1734,5 +2220,26 @@ class _ResourcesTabState extends State<ResourcesTab>
             ),
           ),
     );
+  }
+
+  // Format the last updated time for display
+  String _formatLastUpdated(String isoString) {
+    try {
+      final dateTime = DateTime.parse(isoString);
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+
+      if (difference.inDays > 0) {
+        return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+      } else {
+        return 'just now';
+      }
+    } catch (e) {
+      return 'unknown time';
+    }
   }
 }

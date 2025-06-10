@@ -45,15 +45,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     SystemChrome.setSystemUIOverlayStyle(
       isDark
           ? SystemUiOverlayStyle.light.copyWith(
-            statusBarColor: Colors.transparent,
-            systemNavigationBarColor: AppTheme.darkSurface,
-            systemNavigationBarIconBrightness: Brightness.light,
-          )
+              statusBarColor: Colors.transparent,
+              systemNavigationBarColor: AppTheme.darkSurface,
+              systemNavigationBarIconBrightness: Brightness.light,
+            )
           : SystemUiOverlayStyle.dark.copyWith(
-            statusBarColor: Colors.transparent,
-            systemNavigationBarColor: AppTheme.lightSurface,
-            systemNavigationBarIconBrightness: Brightness.dark,
-          ),
+              statusBarColor: Colors.transparent,
+              systemNavigationBarColor: AppTheme.lightSurface,
+              systemNavigationBarIconBrightness: Brightness.dark,
+            ),
     );
 
     return Scaffold(
@@ -65,16 +65,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors:
-                    isDark
-                        ? [
-                          AppTheme.darkBackground,
-                          AppTheme.darkBackground.withOpacity(0.8),
-                        ]
-                        : [
-                          AppTheme.lightPrimaryStart.withOpacity(0.05),
-                          AppTheme.lightPrimaryEnd.withOpacity(0.02),
-                        ],
+                colors: isDark
+                    ? [
+                        AppTheme.darkBackground,
+                        AppTheme.darkBackground.withOpacity(0.8),
+                      ]
+                    : [
+                        AppTheme.lightPrimaryStart.withOpacity(0.05),
+                        AppTheme.lightPrimaryEnd.withOpacity(0.02),
+                      ],
               ),
             ),
           ),
@@ -165,20 +164,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isLecturer = Provider.of<AuthProvider>(context).isLecturer;
 
     // Use secondary colors for lecturers, primary colors for students
-    final selectedGradient =
-        isLecturer
-            ? AppTheme.secondaryGradient(isDark)
-            : AppTheme.primaryGradient(isDark);
+    final selectedGradient = isLecturer
+        ? AppTheme.secondaryGradient(isDark)
+        : AppTheme.primaryGradient(isDark);
 
-    final selectedColor =
-        isLecturer
-            ? (isDark
-                ? AppTheme.darkSecondaryStart
-                : AppTheme.lightSecondaryStart)
-            : (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart);
+    final selectedColor = isLecturer
+        ? (isDark ? AppTheme.darkSecondaryStart : AppTheme.lightSecondaryStart)
+        : (isDark ? AppTheme.darkPrimaryStart : AppTheme.lightPrimaryStart);
 
-    final unselectedColor =
-        isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+    final unselectedColor = isDark
+        ? AppTheme.darkTextSecondary
+        : AppTheme.lightTextSecondary;
 
     return InkWell(
       onTap: () => _onTabTapped(index),

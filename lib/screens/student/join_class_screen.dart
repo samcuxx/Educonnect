@@ -12,7 +12,8 @@ class JoinClassScreen extends StatefulWidget {
   State<JoinClassScreen> createState() => _JoinClassScreenState();
 }
 
-class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProviderStateMixin {
+class _JoinClassScreenState extends State<JoinClassScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _classCodeController = TextEditingController();
   late final AnimationController _shakeController;
@@ -26,13 +27,12 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
       duration: const Duration(milliseconds: 500),
     );
     _shakeAnimation = Tween<double>(begin: 0.0, end: 10.0)
-        .chain(CurveTween(curve: Curves.elasticIn))
-        .animate(_shakeController)
-      ..addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
-          _shakeController.reverse();
-        }
-      });
+      .chain(CurveTween(curve: Curves.elasticIn))
+      .animate(_shakeController)..addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _shakeController.reverse();
+      }
+    });
   }
 
   @override
@@ -45,7 +45,7 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       final classProvider = Provider.of<ClassProvider>(context, listen: false);
-      
+
       await classProvider.joinClass(
         classCode: _classCodeController.text.trim(),
       );
@@ -65,7 +65,9 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
           // Show error message and shake the input field
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(classProvider.errorMessage ?? 'Failed to join class'),
+              content: Text(
+                classProvider.errorMessage ?? 'Failed to join class',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -90,26 +92,30 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: isDark
-                    ? [
-                        AppTheme.darkBackground,
-                        AppTheme.darkBackground.withOpacity(0.8),
-                      ]
-                    : [
-                        AppTheme.lightPrimaryStart.withOpacity(0.05),
-                        AppTheme.lightPrimaryEnd.withOpacity(0.02),
-                      ],
+                colors:
+                    isDark
+                        ? [
+                          AppTheme.darkBackground,
+                          AppTheme.darkBackground.withOpacity(0.8),
+                        ]
+                        : [
+                          AppTheme.lightPrimaryStart.withOpacity(0.05),
+                          AppTheme.lightPrimaryEnd.withOpacity(0.02),
+                        ],
               ),
             ),
           ),
-          
+
           // Content
           SafeArea(
             child: Column(
               children: [
                 // Top bar with back button
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 16.0,
+                  ),
                   child: Row(
                     children: [
                       GestureDetector(
@@ -118,9 +124,10 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isDark 
-                                ? AppTheme.darkSurface
-                                : AppTheme.lightSurface,
+                            color:
+                                isDark
+                                    ? AppTheme.darkSurface
+                                    : AppTheme.lightSurface,
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.1),
@@ -138,7 +145,7 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
                     ],
                   ),
                 ),
-                
+
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24.0),
@@ -168,31 +175,37 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
                           ),
                         ),
                         const SizedBox(height: 32),
-                        
+
                         // Title with gradient
                         ShaderMask(
-                          shaderCallback: (bounds) => AppTheme.primaryGradient(isDark).createShader(bounds),
+                          shaderCallback:
+                              (bounds) => AppTheme.primaryGradient(
+                                isDark,
+                              ).createShader(bounds),
                           child: Text(
                             'Join a Class',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            style: Theme.of(
+                              context,
+                            ).textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
                           ),
                         ),
                         const SizedBox(height: 8),
-                        
+
                         Text(
                           'Enter the class code to join',
                           style: TextStyle(
                             fontSize: 16,
-                            color: isDark 
-                                ? AppTheme.darkTextSecondary
-                                : AppTheme.lightTextSecondary,
+                            color:
+                                isDark
+                                    ? AppTheme.darkTextSecondary
+                                    : AppTheme.lightTextSecondary,
                           ),
                         ),
                         const SizedBox(height: 32),
-                        
+
                         // Form in gradient container
                         GradientContainer(
                           padding: const EdgeInsets.all(24),
@@ -213,15 +226,17 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
                                     controller: _classCodeController,
                                     decoration: InputDecoration(
                                       labelText: 'Class Code',
-                                      hintText: 'Enter the code from your lecturer',
+                                      hintText:
+                                          'Enter the code from your lecturer',
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       prefixIcon: const Icon(Icons.code),
                                       filled: true,
-                                      fillColor: isDark 
-                                          ? AppTheme.darkSurface
-                                          : AppTheme.lightSurface,
+                                      fillColor:
+                                          isDark
+                                              ? AppTheme.darkSurface
+                                              : AppTheme.lightSurface,
                                     ),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
@@ -235,11 +250,12 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
                                       letterSpacing: 2,
                                       fontWeight: FontWeight.w500,
                                     ),
-                                    textCapitalization: TextCapitalization.characters,
+                                    textCapitalization:
+                                        TextCapitalization.characters,
                                   ),
                                 ),
                                 const SizedBox(height: 24),
-                                
+
                                 // Join button
                                 GradientButton(
                                   text: 'Join Class',
@@ -251,21 +267,27 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
                             ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 24),
-                        
+
                         // Help text
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: isDark
-                                ? AppTheme.darkSurface
-                                : AppTheme.lightSurface,
+                            color:
+                                isDark
+                                    ? AppTheme.darkSurface
+                                    : AppTheme.lightSurface,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isDark
-                                  ? AppTheme.darkPrimaryStart.withOpacity(0.2)
-                                  : AppTheme.lightPrimaryStart.withOpacity(0.2),
+                              color:
+                                  isDark
+                                      ? AppTheme.darkPrimaryStart.withOpacity(
+                                        0.2,
+                                      )
+                                      : AppTheme.lightPrimaryStart.withOpacity(
+                                        0.2,
+                                      ),
                             ),
                           ),
                           child: Row(
@@ -273,17 +295,21 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: isDark
-                                      ? AppTheme.darkPrimaryStart.withOpacity(0.1)
-                                      : AppTheme.lightPrimaryStart.withOpacity(0.1),
+                                  color:
+                                      isDark
+                                          ? AppTheme.darkPrimaryStart
+                                              .withOpacity(0.1)
+                                          : AppTheme.lightPrimaryStart
+                                              .withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
                                   Icons.help_outline,
                                   size: 20,
-                                  color: isDark
-                                      ? AppTheme.darkPrimaryStart
-                                      : AppTheme.lightPrimaryStart,
+                                  color:
+                                      isDark
+                                          ? AppTheme.darkPrimaryStart
+                                          : AppTheme.lightPrimaryStart,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -291,9 +317,10 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
                                 child: Text(
                                   'Ask your lecturer for the class code. The code is unique for each class.',
                                   style: TextStyle(
-                                    color: isDark
-                                        ? AppTheme.darkTextSecondary
-                                        : AppTheme.lightTextSecondary,
+                                    color:
+                                        isDark
+                                            ? AppTheme.darkTextSecondary
+                                            : AppTheme.lightTextSecondary,
                                   ),
                                 ),
                               ),
@@ -311,4 +338,4 @@ class _JoinClassScreenState extends State<JoinClassScreen> with SingleTickerProv
       ),
     );
   }
-} 
+}

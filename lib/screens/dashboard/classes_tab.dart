@@ -21,23 +21,33 @@ class ClassesTab extends StatefulWidget {
 
 class _ClassesTabState extends State<ClassesTab> {
   bool _isLoading = false;
+  bool _isRefreshing = false;
   bool _isGridView =
       false; // Changed from true to false to make list view default
 
   @override
   void initState() {
     super.initState();
-    _loadClasses();
+    // Use Future.microtask to avoid setState during build
+    Future.microtask(() {
+      _loadClasses();
+    });
   }
 
   Future<void> _loadClasses() async {
+    if (!mounted) return;
+
+    // Only show loading indicator if we have no cached data
+    final classProvider = Provider.of<ClassProvider>(context, listen: false);
+
     setState(() {
-      _isLoading = true;
+      if (classProvider.classes.isEmpty) {
+        _isLoading = true;
+      }
     });
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final classProvider = Provider.of<ClassProvider>(context, listen: false);
 
       if (authProvider.isLecturer) {
         await classProvider.loadLecturerClasses();
@@ -62,8 +72,53 @@ class _ClassesTabState extends State<ClassesTab> {
     }
   }
 
+  // Refresh data - force refresh from server
+  Future<void> _refreshClasses() async {
+    setState(() {
+      _isRefreshing = true;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final classProvider = Provider.of<ClassProvider>(context, listen: false);
+
+      await classProvider.refreshClasses(isLecturer: authProvider.isLecturer);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh classes: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
+    }
+  }
+
   // Create or join a class
   Future<void> _createOrJoinClass(BuildContext context, bool isLecturer) async {
+    // Check if offline
+    final classProvider = Provider.of<ClassProvider>(context, listen: false);
+    if (classProvider.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isLecturer
+                ? 'Cannot create class while offline'
+                : 'Cannot join class while offline',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     final result = await Navigator.push(
       context,
       PageRouteBuilder(
@@ -102,6 +157,10 @@ class _ClassesTabState extends State<ClassesTab> {
     bool isLecturer,
     bool isDark,
   ) {
+    // Check if offline for operation that requires network
+    final classProvider = Provider.of<ClassProvider>(context, listen: false);
+    final isOffline = classProvider.isOffline;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
@@ -153,6 +212,33 @@ class _ClassesTabState extends State<ClassesTab> {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                if (isOffline)
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: Colors.orange, width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.wifi_off, color: Colors.orange, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Offline mode',
+                          style: TextStyle(
+                            color: Colors.orange.shade800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 24),
                 ListTile(
                   leading: Icon(
@@ -185,44 +271,83 @@ class _ClassesTabState extends State<ClassesTab> {
                     leading: Icon(
                       Icons.edit_outlined,
                       color:
-                          isDark
-                              ? AppTheme.darkTextPrimary
-                              : AppTheme.lightTextPrimary,
+                          isOffline
+                              ? Colors.grey
+                              : (isDark
+                                  ? AppTheme.darkTextPrimary
+                                  : AppTheme.lightTextPrimary),
                     ),
                     title: Text(
                       'Edit Class',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w500,
+                        color: isOffline ? Colors.grey : null,
+                      ),
                     ),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) =>
-                                  EditClassScreen(classModel: classModel),
-                        ),
-                      );
+                    onTap:
+                        isOffline
+                            ? () {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Cannot edit class while offline',
+                                  ),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                            }
+                            : () async {
+                              Navigator.pop(context);
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => EditClassScreen(
+                                        classModel: classModel,
+                                      ),
+                                ),
+                              );
 
-                      // Reload classes if the class was updated
-                      if (result == true) {
-                        _loadClasses();
-                      }
-                    },
+                              // Reload classes if the class was updated
+                              if (result == true) {
+                                _loadClasses();
+                              }
+                            },
                   ),
                   ListTile(
-                    leading: Icon(Icons.delete_outline, color: Colors.red),
+                    leading: Icon(
+                      Icons.delete_outline,
+                      color: isOffline ? Colors.grey : Colors.red,
+                    ),
                     title: Text(
                       'Delete Class',
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w500,
-                        color: Colors.red,
+                        color: isOffline ? Colors.grey : Colors.red,
                       ),
                     ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showDeleteConfirmation(context, classModel, isDark);
-                    },
+                    onTap:
+                        isOffline
+                            ? () {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Cannot delete class while offline',
+                                  ),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                            }
+                            : () {
+                              Navigator.pop(context);
+                              _showDeleteConfirmation(
+                                context,
+                                classModel,
+                                isDark,
+                              );
+                            },
                   ),
                 ],
               ],
@@ -331,6 +456,7 @@ class _ClassesTabState extends State<ClassesTab> {
     final classes = classProvider.classes;
     final isLecturer = authProvider.isLecturer;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isOffline = classProvider.isOffline;
 
     return Scaffold(
       floatingActionButton: Container(
@@ -417,7 +543,7 @@ class _ClassesTabState extends State<ClassesTab> {
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadClasses,
+          onRefresh: _refreshClasses,
           child: CustomScrollView(
             slivers: [
               // Header with title and view toggle
@@ -427,20 +553,60 @@ class _ClassesTabState extends State<ClassesTab> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ShaderMask(
-                        shaderCallback:
-                            (bounds) => (isLecturer
-                                    ? AppTheme.secondaryGradient(isDark)
-                                    : AppTheme.primaryGradient(isDark))
-                                .createShader(bounds),
-                        child: Text(
-                          isLecturer ? 'My Classes' : 'My Courses',
-                          style: GoogleFonts.inter(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ShaderMask(
+                            shaderCallback:
+                                (bounds) => (isLecturer
+                                        ? AppTheme.secondaryGradient(isDark)
+                                        : AppTheme.primaryGradient(isDark))
+                                    .createShader(bounds),
+                            child: Text(
+                              isLecturer ? 'My Classes' : 'My Courses',
+                              style: GoogleFonts.inter(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (isOffline)
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.orange,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.wifi_off,
+                                    color: Colors.orange,
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Offline mode',
+                                    style: TextStyle(
+                                      color: Colors.orange.shade800,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
                       // View toggle button
                       AnimatedContainer(
@@ -521,6 +687,47 @@ class _ClassesTabState extends State<ClassesTab> {
                           ),
                         ),
               ),
+
+              // Refreshing indicator
+              if (_isRefreshing)
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 24),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                isLecturer
+                                    ? (isDark
+                                        ? AppTheme.darkSecondaryStart
+                                        : AppTheme.lightSecondaryStart)
+                                    : (isDark
+                                        ? AppTheme.darkPrimaryStart
+                                        : AppTheme.lightPrimaryStart),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Refreshing classes...',
+                            style: TextStyle(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkTextSecondary
+                                      : AppTheme.lightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

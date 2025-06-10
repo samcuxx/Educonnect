@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/supabase_service.dart';
+import '../services/local_storage_service.dart';
+import '../services/app_initializer.dart';
 
 enum AuthStatus { initial, authenticated, unauthenticated, loading, error }
 
@@ -37,13 +39,48 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Check if user is already signed in with improved session restoration
+  // Check if user is already signed in with improved session restoration and offline support
   Future<void> _checkCurrentUser() async {
     _status = AuthStatus.loading;
     notifyListeners();
 
     try {
-      // Using the enhanced getCurrentUser method that attempts to restore the session
+      // First try to get the user from cache to show the UI immediately
+      final localStorageService = LocalStorageService();
+      final cachedUser = localStorageService.getUser();
+
+      if (cachedUser != null) {
+        _currentUser = cachedUser;
+        _status = AuthStatus.authenticated;
+        notifyListeners(); // Notify early to show the dashboard immediately
+        print('Using cached user initially: ${cachedUser.fullName}');
+
+        // Then try to validate the session in the background
+        try {
+          final user = await _supabaseService.getCurrentUser();
+          if (user != null) {
+            // If user data changed, update it
+            if (user.toString() != cachedUser.toString()) {
+              _currentUser = user;
+              notifyListeners();
+            }
+            print('Session validated successfully. User: ${user.fullName}');
+          } else {
+            // If server says session is invalid but we have cached user,
+            // keep the user logged in with cached data in offline mode
+            print(
+              'Session expired but using cached data to maintain login state',
+            );
+          }
+        } catch (e) {
+          // If we can't reach the server but we have cached user, stay logged in
+          print('Could not validate session but using cached data: $e');
+        }
+
+        return; // Exit early since we already have a user
+      }
+
+      // If no cached user, attempt to restore the session normally
       final user = await _supabaseService.getCurrentUser();
 
       if (user != null) {
@@ -55,6 +92,28 @@ class AuthProvider extends ChangeNotifier {
         print('No valid session found. User needs to log in.');
       }
     } catch (e) {
+      // For offline scenarios, don't show error if it's just a connectivity issue
+      if (e.toString().contains('network') ||
+          e.toString().contains('connection') ||
+          e.toString().contains('internet') ||
+          e.toString().contains('offline')) {
+        // Check if we have a stored user
+        try {
+          final localStorageService = LocalStorageService();
+          final cachedUser = localStorageService.getUser();
+
+          if (cachedUser != null) {
+            _currentUser = cachedUser;
+            _status = AuthStatus.authenticated;
+            print('Using cached user while offline: ${cachedUser.fullName}');
+            notifyListeners();
+            return;
+          }
+        } catch (storageError) {
+          print('Error accessing local storage: $storageError');
+        }
+      }
+
       _status = AuthStatus.error;
       _errorMessage = _formatErrorMessage(e.toString());
       print('Error checking current user: $_errorMessage');
@@ -229,7 +288,6 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Sign out - Now this includes global state reset
-  // The resetClassProvider parameter should be set by the UI when calling this method
   Future<void> signOut({Function? resetClassProvider}) async {
     _status = AuthStatus.loading;
     notifyListeners();
@@ -240,7 +298,12 @@ class AuthProvider extends ChangeNotifier {
         resetClassProvider();
       }
 
+      // Clear all app cache before signing out
+      await AppInitializer.clearCache();
+
+      // Sign out from Supabase
       await _supabaseService.signOut();
+
       _currentUser = null;
       _status = AuthStatus.unauthenticated;
     } catch (e) {

@@ -18,6 +18,7 @@ class HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   bool _isLoading = false;
+  bool _isRefreshing = false;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
@@ -34,7 +35,11 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     );
 
     _animationController.forward();
-    _loadData();
+
+    // Use Future.microtask to avoid setState during build
+    Future.microtask(() {
+      _loadData();
+    });
   }
 
   @override
@@ -44,25 +49,82 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
+
+    // Only show loading indicator if we have no data
+    final classProvider = Provider.of<ClassProvider>(context, listen: false);
+
     setState(() {
-      _isLoading = true;
+      if (classProvider.classes.isEmpty) {
+        _isLoading = true;
+      }
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      // Load classes - this will first try to load from cache
+      if (authProvider.isLecturer) {
+        await classProvider.loadLecturerClasses();
+      } else if (authProvider.isStudent) {
+        await classProvider.loadStudentClasses();
+      }
+
+      // If we already have cached data, refresh in the background
+      if (classProvider.classes.isNotEmpty) {
+        // Don't show loading, just refresh in background
+        await classProvider.refreshClasses(
+          isLecturer: authProvider.isLecturer,
+          showLoadingIndicator: false,
+        );
+      }
+    } catch (e) {
+      // Handle error - but don't show if we loaded cached data
+      final classProvider = Provider.of<ClassProvider>(context, listen: false);
+
+      if (classProvider.classes.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('You\'re offline. Please connect to the internet.'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Refresh data - force refresh from server
+  Future<void> _refreshData() async {
+    setState(() {
+      _isRefreshing = true;
     });
 
     try {
       final classProvider = Provider.of<ClassProvider>(context, listen: false);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      if (authProvider.isLecturer) {
-        await classProvider.loadLecturerClasses();
-      } else if (authProvider.isStudent) {
-        await classProvider.loadStudentClasses();
-      }
+      await classProvider.refreshClasses(isLecturer: authProvider.isLecturer);
     } catch (e) {
       // Handle error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error refreshing data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isRefreshing = false;
         });
       }
     }
@@ -77,6 +139,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final User? user = authProvider.currentUser;
     final now = DateTime.now();
+    final isOffline = classProvider.isOffline;
 
     return AnimatedBuilder(
       animation: _animationController,
@@ -85,7 +148,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       },
       child: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadData,
+          onRefresh: _refreshData,
           child:
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -139,32 +202,60 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                               ],
                             ),
                             const Spacer(),
-                            CircleAvatar(
-                              radius: 26,
-                              backgroundColor:
-                                  isLecturer
-                                      ? (isDark
-                                          ? AppTheme.darkSecondaryStart
-                                              .withOpacity(0.2)
-                                          : AppTheme.lightSecondaryStart
-                                              .withOpacity(0.2))
-                                      : (isDark
-                                          ? AppTheme.darkPrimaryStart
-                                              .withOpacity(0.2)
-                                          : AppTheme.lightPrimaryStart
-                                              .withOpacity(0.2)),
-                              child: Icon(
-                                Icons.person_outline_rounded,
-                                size: 30,
-                                color:
-                                    isLecturer
-                                        ? (isDark
-                                            ? AppTheme.darkSecondaryStart
-                                            : AppTheme.lightSecondaryStart)
-                                        : (isDark
-                                            ? AppTheme.darkPrimaryStart
-                                            : AppTheme.lightPrimaryStart),
-                              ),
+                            Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 26,
+                                  backgroundColor:
+                                      isLecturer
+                                          ? (isDark
+                                              ? AppTheme.darkSecondaryStart
+                                                  .withOpacity(0.2)
+                                              : AppTheme.lightSecondaryStart
+                                                  .withOpacity(0.2))
+                                          : (isDark
+                                              ? AppTheme.darkPrimaryStart
+                                                  .withOpacity(0.2)
+                                              : AppTheme.lightPrimaryStart
+                                                  .withOpacity(0.2)),
+                                  child: Icon(
+                                    Icons.person_outline_rounded,
+                                    size: 30,
+                                    color:
+                                        isLecturer
+                                            ? (isDark
+                                                ? AppTheme.darkSecondaryStart
+                                                : AppTheme.lightSecondaryStart)
+                                            : (isDark
+                                                ? AppTheme.darkPrimaryStart
+                                                : AppTheme.lightPrimaryStart),
+                                  ),
+                                ),
+                                if (isOffline)
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color:
+                                              isDark
+                                                  ? Colors.black
+                                                  : Colors.white,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.wifi_off,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ],
                         ),
@@ -234,6 +325,43 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
 
                         const SizedBox(height: 24),
 
+                        // Offline indicator if offline
+                        if (isOffline)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 24),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(
+                                color: Colors.orange,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.wifi_off,
+                                  color: Colors.orange,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'You are currently offline. Some features may be limited.',
+                                    style: TextStyle(
+                                      color: Colors.orange.shade800,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
                         // Statistics section
                         _buildStatisticsSection(
                           context,
@@ -251,6 +379,45 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                           isLecturer,
                           isDark,
                         ),
+
+                        // Refreshing indicator at bottom
+                        if (_isRefreshing)
+                          Container(
+                            margin: const EdgeInsets.symmetric(vertical: 24),
+                            child: Center(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        isLecturer
+                                            ? (isDark
+                                                ? AppTheme.darkSecondaryStart
+                                                : AppTheme.lightSecondaryStart)
+                                            : (isDark
+                                                ? AppTheme.darkPrimaryStart
+                                                : AppTheme.lightPrimaryStart),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Refreshing...',
+                                    style: TextStyle(
+                                      color:
+                                          isDark
+                                              ? AppTheme.darkTextSecondary
+                                              : AppTheme.lightTextSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -267,6 +434,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   ) {
     // Get the ClassProvider
     final classProvider = Provider.of<ClassProvider>(context);
+    final isOffline = classProvider.isOffline;
 
     // Different statistics for lecturers and students
     return Column(
@@ -307,12 +475,17 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                         : Icons.assignment_outlined,
                 title: isLecturer ? 'Students' : 'Assignments',
                 value:
-                    isLecturer ? classProvider.totalStudents.toString() : '0',
+                    isLecturer
+                        ? (isOffline && classProvider.totalStudents == 0
+                            ? '—'
+                            : classProvider.totalStudents.toString())
+                        : '0',
                 gradient:
                     isLecturer
                         ? AppTheme.secondaryGradient(isDark)
                         : AppTheme.primaryGradient(isDark),
                 isDark: isDark,
+                showOfflineIndicator: isLecturer && isOffline,
               ),
             ),
           ],
@@ -328,6 +501,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     required String value,
     required LinearGradient gradient,
     required bool isDark,
+    bool showOfflineIndicator = false,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -351,14 +525,32 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             child: Icon(icon, color: Colors.white, size: 20),
           ),
           const SizedBox(height: 16),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color:
-                  isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
-            ),
+          Row(
+            children: [
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color:
+                      isDark
+                          ? AppTheme.darkTextPrimary
+                          : AppTheme.lightTextPrimary,
+                ),
+              ),
+              if (showOfflineIndicator)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Tooltip(
+                    message: 'Using cached student count while offline',
+                    child: Icon(
+                      Icons.offline_bolt,
+                      size: 16,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
