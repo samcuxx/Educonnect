@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/user_model.dart';
 import '../../widgets/custom_text_field.dart';
@@ -125,10 +126,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final isLecturer = Provider.of<AuthProvider>(context).isLecturer;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile'), elevation: 0),
+      appBar: AppBar(
+        title: Text(
+          'Edit Profile',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18),
+        ),
+        elevation: 0,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Form(
             key: _formKey,
             child: Column(
@@ -150,7 +157,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       backgroundColor:
                           isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
                       child: Icon(
-                        Icons.person,
+                        Icons.person_outline_rounded,
                         size: 50,
                         color:
                             isLecturer
@@ -165,12 +172,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
+
+                Text(
+                  'Personal Information',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color:
+                        isDark
+                            ? AppTheme.darkTextPrimary
+                            : AppTheme.lightTextPrimary,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
 
                 // Common fields
                 CustomTextField(
                   controller: _fullNameController,
                   labelText: 'Full Name',
+                  prefixIcon: const Icon(Icons.person_outline_rounded),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your full name';
@@ -184,6 +206,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 CustomTextField(
                   controller: _emailController,
                   labelText: 'Email',
+                  prefixIcon: const Icon(Icons.email_outlined),
                   enabled: false, // Email cannot be changed
                 ),
 
@@ -191,7 +214,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                 CustomTextField(
                   controller: _phoneNumberController,
-                  labelText: 'Phone Number (for SMS notifications)',
+                  labelText: 'Phone Number',
+                  hintText: 'For SMS notifications',
+                  prefixIcon: const Icon(Icons.phone_outlined),
                   keyboardType: TextInputType.phone,
                   validator: (value) {
                     if (value != null && value.isNotEmpty) {
@@ -204,13 +229,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   },
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
+
+                // Role-specific section header
+                Text(
+                  isLecturer ? 'Academic Information' : 'Student Information',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color:
+                        isDark
+                            ? AppTheme.darkTextPrimary
+                            : AppTheme.lightTextPrimary,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
 
                 // Role-specific fields
                 if (isLecturer) ...[
                   CustomTextField(
                     controller: _staffIdController,
                     labelText: 'Staff ID',
+                    prefixIcon: const Icon(Icons.badge_outlined),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your staff ID';
@@ -224,6 +265,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   CustomTextField(
                     controller: _departmentController,
                     labelText: 'Department',
+                    prefixIcon: const Icon(Icons.business_outlined),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your department';
@@ -235,6 +277,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   CustomTextField(
                     controller: _studentNumberController,
                     labelText: 'Student Number',
+                    prefixIcon: const Icon(Icons.numbers_outlined),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your student number';
@@ -248,6 +291,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   CustomTextField(
                     controller: _institutionController,
                     labelText: 'Institution',
+                    prefixIcon: const Icon(Icons.business_outlined),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your institution';
@@ -261,6 +305,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   CustomTextField(
                     controller: _levelController,
                     labelText: 'Level',
+                    prefixIcon: const Icon(Icons.school_outlined),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your level';
@@ -270,14 +315,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ],
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
 
                 if (_errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
                       _errorMessage!,
-                      style: const TextStyle(color: Colors.red, fontSize: 14),
+                      style: GoogleFonts.inter(
+                        color: Colors.red,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
