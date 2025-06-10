@@ -333,21 +333,87 @@ class _ClassesTabState extends State<ClassesTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _createOrJoinClass(context, isLecturer),
-        icon: Icon(isLecturer ? Icons.add : Icons.login_outlined),
-        label: Text(
-          isLecturer ? 'Create Class' : 'Join Class',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors:
+                isLecturer
+                    ? (isDark
+                        ? [
+                          AppTheme.darkSecondaryStart,
+                          AppTheme.darkSecondaryEnd,
+                        ]
+                        : [
+                          AppTheme.lightSecondaryStart,
+                          AppTheme.lightSecondaryEnd,
+                        ])
+                    : (isDark
+                        ? [AppTheme.darkPrimaryStart, AppTheme.darkPrimaryEnd]
+                        : [
+                          AppTheme.lightPrimaryStart,
+                          AppTheme.lightPrimaryEnd,
+                        ]),
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color:
+                isLecturer
+                    ? (isDark ? AppTheme.darkBorder : AppTheme.lightBorder)
+                    : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color:
+                  isLecturer
+                      ? (isDark
+                              ? AppTheme.darkSecondaryStart
+                              : AppTheme.lightSecondaryStart)
+                          .withOpacity(0.25)
+                      : (isDark
+                              ? AppTheme.darkPrimaryStart
+                              : AppTheme.lightPrimaryStart)
+                          .withOpacity(0.25),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+              spreadRadius: 0.5,
+            ),
+          ],
         ),
-        backgroundColor:
-            isLecturer
-                ? (isDark
-                    ? AppTheme.darkSecondaryStart
-                    : AppTheme.lightSecondaryStart)
-                : (isDark
-                    ? AppTheme.darkPrimaryStart
-                    : AppTheme.lightPrimaryStart),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(28),
+            onTap: () => _createOrJoinClass(context, isLecturer),
+            splashColor: Colors.white.withOpacity(0.1),
+            highlightColor: Colors.white.withOpacity(0.05),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isLecturer ? Icons.add_rounded : Icons.login_outlined,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isLecturer ? 'Create Class' : 'Join Class',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: SafeArea(
         child: RefreshIndicator(
