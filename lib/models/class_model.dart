@@ -10,6 +10,7 @@ class ClassModel {
   final DateTime endDate;
   final String createdBy;
   final DateTime createdAt;
+  int studentCount = 0; // Default student count
 
   ClassModel({
     required this.id,
@@ -21,6 +22,7 @@ class ClassModel {
     required this.endDate,
     required this.createdBy,
     required this.createdAt,
+    this.studentCount = 0, // Default parameter
   });
 
   // Generate a unique class code based on the course code
@@ -57,4 +59,4 @@ class ClassModel {
       'created_at': createdAt.toIso8601String(),
     };
   }
-} 
+}

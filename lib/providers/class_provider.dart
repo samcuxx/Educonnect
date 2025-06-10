@@ -18,6 +18,31 @@ class ClassProvider extends ChangeNotifier {
   List<ClassModel> get classes => _classes;
   String? get errorMessage => _errorMessage;
 
+  // Get total student count for all lecturer classes
+  int get totalStudents {
+    int count = 0;
+    for (var classItem in _classes) {
+      count += classItem.studentCount;
+    }
+    return count;
+  }
+
+  // Load student counts for all classes
+  Future<void> loadStudentCounts() async {
+    try {
+      for (int i = 0; i < _classes.length; i++) {
+        final count = await _supabaseService.getClassStudentsCount(
+          _classes[i].id,
+        );
+        _classes[i].studentCount = count;
+      }
+      notifyListeners();
+    } catch (e) {
+      // Handle error
+      print('Error loading student counts: $e');
+    }
+  }
+
   // Create a new class (for lecturers)
   Future<void> createClass({
     required String name,
@@ -97,6 +122,10 @@ class ClassProvider extends ChangeNotifier {
       final lecturerClasses = await _supabaseService.getLecturerClasses();
       _classes = lecturerClasses;
       _status = ClassProviderStatus.success;
+
+      // Load student counts for each class
+      await loadStudentCounts();
+
       notifyListeners();
     } catch (e) {
       _status = ClassProviderStatus.error;

@@ -265,6 +265,9 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     bool isLecturer,
     bool isDark,
   ) {
+    // Get the ClassProvider
+    final classProvider = Provider.of<ClassProvider>(context);
+
     // Different statistics for lecturers and students
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,7 +306,8 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                         ? Icons.people_outline
                         : Icons.assignment_outlined,
                 title: isLecturer ? 'Students' : 'Assignments',
-                value: '0', // This would come from a provider
+                value:
+                    isLecturer ? classProvider.totalStudents.toString() : '0',
                 gradient:
                     isLecturer
                         ? AppTheme.secondaryGradient(isDark)
@@ -397,8 +401,8 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             ),
             TextButton(
               onPressed: () {
-                // Navigate to Classes tab
-                // This would be handled by the parent widget
+                // Navigate to Classes tab (index 1)
+                DefaultTabController.of(context)?.animateTo(1);
               },
               child: Text(
                 'View All',
