@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -426,97 +427,254 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      backgroundColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder:
           (context) => StatefulBuilder(
             builder:
-                (context, setModalState) => Padding(
+                (context, setModalState) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? AppTheme.darkSurface
+                            : Colors.white,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
+                    border: Border.all(
+                      color:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? AppTheme.darkBorder
+                              : AppTheme.lightBorder,
+                    ),
+                  ),
                   padding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).viewInsets.bottom,
                     left: 16,
                     right: 16,
                     top: 16,
                   ),
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Text(
-                          'New Announcement',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                  child: SingleChildScrollView(
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ShaderMask(
+                            shaderCallback:
+                                (bounds) => LinearGradient(
+                                  colors:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? [
+                                            AppTheme.darkSecondaryStart,
+                                            AppTheme.darkSecondaryEnd,
+                                          ]
+                                          : [
+                                            AppTheme.lightSecondaryStart,
+                                            AppTheme.lightSecondaryEnd,
+                                          ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ).createShader(bounds),
+                            child: Text(
+                              'Upload Resource',
+                              style: GoogleFonts.inter(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: titleController,
-                          decoration: const InputDecoration(
-                            labelText: 'Title',
-                            border: OutlineInputBorder(),
+                          const SizedBox(height: 24),
+                          TextFormField(
+                            controller: titleController,
+                            decoration: InputDecoration(
+                              labelText: 'Title',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppTheme.darkBorder
+                                          : AppTheme.lightBorder,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppTheme.darkSecondaryStart
+                                          : AppTheme.lightSecondaryStart,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            style: GoogleFonts.inter(),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a title';
+                              }
+                              return null;
+                            },
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a title';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: messageController,
-                          decoration: const InputDecoration(
-                            labelText: 'Message',
-                            border: OutlineInputBorder(),
-                            alignLabelWithHint: true,
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: messageController,
+                            decoration: InputDecoration(
+                              labelText: 'Message',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppTheme.darkBorder
+                                          : AppTheme.lightBorder,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppTheme.darkSecondaryStart
+                                          : AppTheme.lightSecondaryStart,
+                                  width: 2,
+                                ),
+                              ),
+                              alignLabelWithHint: true,
+                            ),
+                            style: GoogleFonts.inter(),
+                            maxLines: 5,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a message';
+                              }
+                              return null;
+                            },
                           ),
-                          maxLines: 5,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a message';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        // SMS notification toggle
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: sendSms,
-                              onChanged: (value) {
-                                setModalState(() {
-                                  sendSms = value ?? true;
-                                });
+                          const SizedBox(height: 20),
+                          // SMS notification toggle
+                          Row(
+                            children: [
+                              Theme(
+                                data: Theme.of(context).copyWith(
+                                  checkboxTheme: CheckboxThemeData(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                                child: Checkbox(
+                                  value: sendSms,
+                                  activeColor:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppTheme.darkSecondaryStart
+                                          : AppTheme.lightSecondaryStart,
+                                  onChanged: (value) {
+                                    setModalState(() {
+                                      sendSms = value ?? true;
+                                    });
+                                  },
+                                ),
+                              ),
+                              Text(
+                                'Send SMS notification to students',
+                                style: GoogleFonts.inter(),
+                              ),
+                              const SizedBox(width: 8),
+                              Tooltip(
+                                message:
+                                    'Students must have added their phone numbers to receive SMS notifications',
+                                child: Icon(
+                                  Icons.info_outline,
+                                  size: 16,
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppTheme.darkTextSecondary
+                                          : AppTheme.lightTextSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? [
+                                          AppTheme.darkSecondaryStart,
+                                          AppTheme.darkSecondaryEnd,
+                                        ]
+                                        : [
+                                          AppTheme.lightSecondaryStart,
+                                          AppTheme.lightSecondaryEnd,
+                                        ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(
+                                color:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppTheme.darkBorder
+                                        : AppTheme.lightBorder,
+                                width: 1,
+                              ),
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                if (formKey.currentState!.validate()) {
+                                  Navigator.pop(context, {
+                                    'title': titleController.text.trim(),
+                                    'message': messageController.text.trim(),
+                                    'sendSms': sendSms,
+                                  });
+                                }
                               },
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.transparent,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(28),
+                                ),
+                              ),
+                              child: Text(
+                                'Post Announcement',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
                             ),
-                            const Text('Send SMS notification to students'),
-                            const Tooltip(
-                              message:
-                                  'Students must have added their phone numbers to receive SMS notifications',
-                              child: Icon(Icons.info_outline, size: 16),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (formKey.currentState!.validate()) {
-                              Navigator.pop(context, {
-                                'title': titleController.text.trim(),
-                                'message': messageController.text.trim(),
-                                'sendSms': sendSms,
-                              });
-                            }
-                          },
-                          child: const Text('Post Announcement'),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -654,14 +812,10 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark ? AppTheme.darkSurface : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -669,9 +823,12 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                 // Header
                 Container(
                   decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient(isDark),
+                    color:
+                        isDark
+                            ? AppTheme.darkSecondaryStart
+                            : AppTheme.lightSecondaryStart,
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
+                      top: Radius.circular(28),
                     ),
                   ),
                   padding: const EdgeInsets.all(20),
@@ -808,14 +965,10 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark ? AppTheme.darkSurface : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -823,9 +976,12 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                 // Header
                 Container(
                   decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient(isDark),
+                    color:
+                        isDark
+                            ? AppTheme.darkSecondaryStart
+                            : AppTheme.lightSecondaryStart,
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
+                      top: Radius.circular(28),
                     ),
                   ),
                   padding: const EdgeInsets.all(20),
@@ -965,14 +1121,10 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark ? AppTheme.darkSurface : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -980,9 +1132,12 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                 // Header
                 Container(
                   decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient(isDark),
+                    color:
+                        isDark
+                            ? AppTheme.darkSecondaryStart
+                            : AppTheme.lightSecondaryStart,
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
+                      top: Radius.circular(28),
                     ),
                   ),
                   padding: const EdgeInsets.all(20),
@@ -1071,13 +1226,30 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      backgroundColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder:
           (context) => StatefulBuilder(
             builder:
-                (context, setModalState) => Padding(
+                (context, setModalState) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? AppTheme.darkSurface
+                            : Colors.white,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
+                    border: Border.all(
+                      color:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? AppTheme.darkBorder
+                              : AppTheme.lightBorder,
+                    ),
+                  ),
                   padding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).viewInsets.bottom,
                     left: 16,
@@ -1091,11 +1263,30 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'Upload Resource',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+                          ShaderMask(
+                            shaderCallback:
+                                (bounds) => LinearGradient(
+                                  colors:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? [
+                                            AppTheme.darkSecondaryStart,
+                                            AppTheme.darkSecondaryEnd,
+                                          ]
+                                          : [
+                                            AppTheme.lightSecondaryStart,
+                                            AppTheme.lightSecondaryEnd,
+                                          ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ).createShader(bounds),
+                            child: Text(
+                              'Upload Resource',
+                              style: GoogleFonts.inter(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -1116,16 +1307,25 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                           // File picker
                           Container(
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey),
-                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppTheme.darkBorder
+                                        : AppTheme.lightBorder,
+                              ),
+                              borderRadius: BorderRadius.circular(28),
                             ),
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 ElevatedButton.icon(
-                                  icon: const Icon(Icons.attach_file),
-                                  label: const Text('Select File'),
+                                  icon: const Icon(Icons.attach_file_outlined),
+                                  label: Text(
+                                    'Select File',
+                                    style: GoogleFonts.inter(),
+                                  ),
                                   onPressed: () async {
                                     try {
                                       // Use file_selector to pick files
@@ -1193,26 +1393,60 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                     }
                                   },
                                   style: ElevatedButton.styleFrom(
+                                    foregroundColor:
+                                        Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? AppTheme.darkSecondaryStart
+                                            : AppTheme.lightSecondaryStart,
+                                    backgroundColor: Colors.transparent,
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 16,
+                                    ),
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(28),
+                                      side: BorderSide(
+                                        color:
+                                            Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? AppTheme.darkSecondaryStart
+                                                : AppTheme.lightSecondaryStart,
+                                      ),
                                     ),
                                   ),
                                 ),
                                 const SizedBox(height: 12),
                                 if (fileName != null) ...[
                                   Container(
-                                    padding: const EdgeInsets.all(8),
+                                    padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.blue.shade50,
-                                      borderRadius: BorderRadius.circular(4),
+                                      color:
+                                          Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? AppTheme.darkSurface
+                                                  .withOpacity(0.7)
+                                              : Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color:
+                                            Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? AppTheme.darkBorder
+                                                : Colors.blue.withOpacity(0.3),
+                                      ),
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(
-                                          Icons.description,
-                                          color: Colors.blue,
+                                        Icon(
+                                          Icons.description_outlined,
+                                          color:
+                                              Theme.of(context).brightness ==
+                                                      Brightness.dark
+                                                  ? AppTheme.darkSecondaryStart
+                                                  : Colors.blue,
+                                          size: 22,
                                         ),
-                                        const SizedBox(width: 8),
+                                        const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment:
@@ -1220,8 +1454,16 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                             children: [
                                               Text(
                                                 fileName!,
-                                                style: const TextStyle(
+                                                style: GoogleFonts.inter(
                                                   fontWeight: FontWeight.bold,
+                                                  color:
+                                                      Theme.of(
+                                                                context,
+                                                              ).brightness ==
+                                                              Brightness.dark
+                                                          ? AppTheme
+                                                              .darkTextPrimary
+                                                          : Colors.black87,
                                                 ),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
@@ -1236,8 +1478,18 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                                           snapshot.data! / 1024;
                                                       return Text(
                                                         '${kb.toStringAsFixed(1)} KB',
-                                                        style: const TextStyle(
+                                                        style: GoogleFonts.inter(
                                                           fontSize: 12,
+                                                          color:
+                                                              Theme.of(
+                                                                        context,
+                                                                      ).brightness ==
+                                                                      Brightness
+                                                                          .dark
+                                                                  ? AppTheme
+                                                                      .darkTextSecondary
+                                                                  : Colors
+                                                                      .black54,
                                                         ),
                                                       );
                                                     }
@@ -1288,73 +1540,109 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                             ],
                           ),
 
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed:
-                                isUploading
-                                    ? null
-                                    : () async {
-                                      if (formKey.currentState!.validate() &&
-                                          selectedFile != null) {
-                                        try {
-                                          // Check if file still exists before proceeding
-                                          if (!await selectedFile!.exists()) {
+                          const SizedBox(height: 24),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? [
+                                          AppTheme.darkSecondaryStart,
+                                          AppTheme.darkSecondaryEnd,
+                                        ]
+                                        : [
+                                          AppTheme.lightSecondaryStart,
+                                          AppTheme.lightSecondaryEnd,
+                                        ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(
+                                color:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppTheme.darkBorder
+                                        : AppTheme.lightBorder,
+                                width: 1,
+                              ),
+                            ),
+                            child: ElevatedButton(
+                              onPressed:
+                                  isUploading
+                                      ? null
+                                      : () async {
+                                        if (formKey.currentState!.validate() &&
+                                            selectedFile != null) {
+                                          try {
+                                            // Check if file still exists before proceeding
+                                            if (!await selectedFile!.exists()) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'File no longer exists or cannot be accessed',
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                              return;
+                                            }
+
+                                            setModalState(() {
+                                              isUploading = true;
+                                            });
+
+                                            Navigator.pop(context, {
+                                              'title':
+                                                  titleController.text.trim(),
+                                              'file': selectedFile,
+                                              'sendSms': sendSms,
+                                            });
+                                          } catch (e) {
+                                            print(
+                                              "Error checking file before upload: $e",
+                                            );
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
-                                              const SnackBar(
+                                              SnackBar(
                                                 content: Text(
-                                                  'File no longer exists or cannot be accessed',
+                                                  'Error preparing file: $e',
                                                 ),
                                                 backgroundColor: Colors.red,
                                               ),
                                             );
-                                            return;
+                                            setModalState(() {
+                                              isUploading = false;
+                                            });
                                           }
-
-                                          setModalState(() {
-                                            isUploading = true;
-                                          });
-
-                                          Navigator.pop(context, {
-                                            'title':
-                                                titleController.text.trim(),
-                                            'file': selectedFile,
-                                            'sendSms': sendSms,
-                                          });
-                                        } catch (e) {
-                                          print(
-                                            "Error checking file before upload: $e",
-                                          );
+                                        } else if (selectedFile == null) {
                                           ScaffoldMessenger.of(
                                             context,
                                           ).showSnackBar(
-                                            SnackBar(
+                                            const SnackBar(
                                               content: Text(
-                                                'Error preparing file: $e',
+                                                'Please select a file',
                                               ),
                                               backgroundColor: Colors.red,
                                             ),
                                           );
-                                          setModalState(() {
-                                            isUploading = false;
-                                          });
                                         }
-                                      } else if (selectedFile == null) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Please select a file',
-                                            ),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                      }
-                                    },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                                      },
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.transparent,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(28),
+                                ),
+                              ),
                               child:
                                   isUploading
                                       ? const Row(
@@ -1372,7 +1660,13 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                           Text('Preparing...'),
                                         ],
                                       )
-                                      : const Text('Upload Resource'),
+                                      : Text(
+                                        'Upload Resource',
+                                        style: GoogleFonts.inter(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -2088,11 +2382,10 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
               ).createShader(bounds),
           child: Text(
             widget.classModel.name,
-            style: TextStyle(
+            style: GoogleFonts.inter(
               fontWeight: FontWeight.bold,
               fontSize: 22,
-              color:
-                  isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+              color: Colors.white,
             ),
           ),
         ),
@@ -2109,13 +2402,13 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
             data: Theme.of(context).copyWith(
               popupMenuTheme: PopupMenuThemeData(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(28),
                 ),
               ),
             ),
             child: PopupMenuButton<String>(
               icon: Icon(
-                Icons.more_vert,
+                Icons.more_vert_outlined,
                 color:
                     isDark
                         ? AppTheme.darkPrimaryStart
@@ -2145,33 +2438,37 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                             size: 20,
                           ),
                           const SizedBox(width: 12),
-                          const Text('Class Details'),
+                          Text('Class Details', style: GoogleFonts.inter()),
                         ],
                       ),
                     ),
                     if (isLecturer)
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete, color: Colors.red, size: 20),
-                            SizedBox(width: 12),
-                            Text('Delete Class'),
+                            const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text('Delete Class', style: GoogleFonts.inter()),
                           ],
                         ),
                       )
                     else
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'leave',
                         child: Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.exit_to_app,
                               color: Colors.red,
                               size: 20,
                             ),
-                            SizedBox(width: 12),
-                            Text('Leave Class'),
+                            const SizedBox(width: 12),
+                            Text('Leave Class', style: GoogleFonts.inter()),
                           ],
                         ),
                       ),
@@ -2195,11 +2492,11 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
             ),
             child: TabBar(
               controller: _tabController,
-              labelStyle: const TextStyle(
+              labelStyle: GoogleFonts.inter(
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),
-              unselectedLabelStyle: const TextStyle(
+              unselectedLabelStyle: GoogleFonts.inter(
                 fontWeight: FontWeight.normal,
                 fontSize: 12,
               ),
@@ -2223,12 +2520,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        _tabController.index == 0
-                            ? Icons.announcement
-                            : Icons.announcement_outlined,
-                        size: 24,
-                      ),
+                      Icon(Icons.announcement_outlined, size: 24),
                       const SizedBox(height: 4),
                       const Text('Updates'),
                     ],
@@ -2239,12 +2531,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        _tabController.index == 1
-                            ? Icons.folder
-                            : Icons.folder_outlined,
-                        size: 24,
-                      ),
+                      Icon(Icons.folder_outlined, size: 24),
                       const SizedBox(height: 4),
                       const Text('Resources'),
                     ],
@@ -2255,12 +2542,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        _tabController.index == 2
-                            ? Icons.assignment
-                            : Icons.assignment_outlined,
-                        size: 24,
-                      ),
+                      Icon(Icons.assignment_outlined, size: 24),
                       const SizedBox(height: 4),
                       const Text('Assignments'),
                     ],
@@ -2290,17 +2572,11 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isDark
-                              ? AppTheme.darkSecondaryStart
-                              : AppTheme.lightSecondaryStart)
-                          .withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                    width: 1,
+                  ),
                 ),
                 child: FloatingActionButton(
                   onPressed: () {
@@ -2322,14 +2598,11 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                   elevation: 0,
                   child: Icon(
                     _tabController.index == 0
-                        ? Icons.post_add
+                        ? Icons.post_add_outlined
                         : _tabController.index == 1
-                        ? Icons.upload_rounded
-                        : Icons.add_task_rounded,
-                    color:
-                        isDark
-                            ? AppTheme.darkTextPrimary
-                            : AppTheme.lightTextPrimary,
+                        ? Icons.upload_file_outlined
+                        : Icons.add_task_outlined,
+                    color: Colors.white,
                   ),
                 ),
               )
@@ -2399,39 +2672,16 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                             isLecturer
                                 ? () => _showAnnouncementOptions(announcement)
                                 : null,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(28),
                         child: Container(
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors:
-                                  isDark
-                                      ? [
-                                        AppTheme.darkSecondaryStart.withOpacity(
-                                          0.1,
-                                        ),
-                                        AppTheme.darkSecondaryEnd.withOpacity(
-                                          0.05,
-                                        ),
-                                      ]
-                                      : [
-                                        AppTheme.lightSecondaryStart
-                                            .withOpacity(0.1),
-                                        AppTheme.lightSecondaryEnd.withOpacity(
-                                          0.05,
-                                        ),
-                                      ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
+                            color: isDark ? AppTheme.darkSurface : Colors.white,
+                            borderRadius: BorderRadius.circular(28),
                             border: Border.all(
                               color:
                                   isDark
-                                      ? AppTheme.darkSecondaryStart.withOpacity(
-                                        0.2,
-                                      )
-                                      : AppTheme.lightSecondaryStart
-                                          .withOpacity(0.2),
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder,
                             ),
                           ),
                           padding: const EdgeInsets.all(16),
@@ -2444,7 +2694,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                     DateFormat(
                                       'MMM d',
                                     ).format(announcement.createdAt),
-                                    style: TextStyle(
+                                    style: GoogleFonts.inter(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                       color:
@@ -2458,7 +2708,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                     DateFormat(
                                       'h:mm a',
                                     ).format(announcement.createdAt),
-                                    style: TextStyle(
+                                    style: GoogleFonts.inter(
                                       fontSize: 12,
                                       color:
                                           isDark
@@ -2469,21 +2719,29 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              Text(
-                                announcement.title,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      isDark
-                                          ? AppTheme.darkTextPrimary
-                                          : AppTheme.lightTextPrimary,
+                              ShaderMask(
+                                shaderCallback:
+                                    (bounds) => LinearGradient(
+                                      colors: [
+                                        Colors.white,
+                                        Colors.white.withOpacity(0.8),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ).createShader(bounds),
+                                child: Text(
+                                  announcement.title,
+                                  style: GoogleFonts.inter(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 announcement.message,
-                                style: TextStyle(
+                                style: GoogleFonts.inter(
                                   fontSize: 14,
                                   color:
                                       isDark
@@ -2517,14 +2775,10 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark ? AppTheme.darkSurface : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2532,9 +2786,12 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                 // Header
                 Container(
                   decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient(isDark),
+                    color:
+                        isDark
+                            ? AppTheme.darkSecondaryStart
+                            : AppTheme.lightSecondaryStart,
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
+                      top: Radius.circular(28),
                     ),
                   ),
                   padding: const EdgeInsets.all(20),
@@ -2557,18 +2814,29 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              announcement.title,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
+                            ShaderMask(
+                              shaderCallback:
+                                  (bounds) => LinearGradient(
+                                    colors: [
+                                      Colors.white,
+                                      Colors.white.withOpacity(0.8),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ).createShader(bounds),
+                              child: Text(
+                                announcement.title,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               _getFormattedDate(announcement.createdAt),
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white.withOpacity(0.8),
                                 fontSize: 14,
                               ),
@@ -2594,24 +2862,25 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: (isDark
-                                    ? AppTheme.darkPrimaryStart
-                                    : AppTheme.lightPrimaryStart)
-                                .withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(12),
+                            color:
+                                (isDark ? AppTheme.darkSurface : Colors.white),
+                            borderRadius: BorderRadius.circular(28),
                             border: Border.all(
-                              color: (isDark
-                                      ? AppTheme.darkPrimaryStart
-                                      : AppTheme.lightPrimaryStart)
-                                  .withOpacity(0.1),
+                              color:
+                                  isDark
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder,
                             ),
                           ),
                           child: Text(
                             announcement.message,
-                            style: TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 16,
                               height: 1.6,
-                              color: isDark ? Colors.white : Colors.black87,
+                              color:
+                                  isDark
+                                      ? AppTheme.darkTextPrimary
+                                      : AppTheme.lightTextPrimary,
                             ),
                           ),
                         ),
@@ -2628,7 +2897,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                 announcement.postedByName
                                     .substring(0, 1)
                                     .toUpperCase(),
-                                style: TextStyle(
+                                style: GoogleFonts.inter(
                                   color:
                                       isDark
                                           ? AppTheme.darkPrimaryStart
@@ -2644,7 +2913,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                               children: [
                                 Text(
                                   'Posted by',
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     fontSize: 12,
                                     color:
                                         isDark
@@ -2654,7 +2923,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                 ),
                                 Text(
                                   announcement.postedByName,
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                     color:
@@ -2731,39 +3000,16 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                             isLecturer
                                 ? () => _showResourceOptions(resource)
                                 : null,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(28),
                         child: Container(
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors:
-                                  isDark
-                                      ? [
-                                        AppTheme.darkSecondaryStart.withOpacity(
-                                          0.1,
-                                        ),
-                                        AppTheme.darkSecondaryEnd.withOpacity(
-                                          0.05,
-                                        ),
-                                      ]
-                                      : [
-                                        AppTheme.lightSecondaryStart
-                                            .withOpacity(0.1),
-                                        AppTheme.lightSecondaryEnd.withOpacity(
-                                          0.05,
-                                        ),
-                                      ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
+                            color: isDark ? AppTheme.darkSurface : Colors.white,
+                            borderRadius: BorderRadius.circular(28),
                             border: Border.all(
                               color:
                                   isDark
-                                      ? AppTheme.darkSecondaryStart.withOpacity(
-                                        0.2,
-                                      )
-                                      : AppTheme.lightSecondaryStart
-                                          .withOpacity(0.2),
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder,
                             ),
                           ),
                           padding: const EdgeInsets.all(16),
@@ -2794,7 +3040,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                       children: [
                                         Text(
                                           resource.title,
-                                          style: TextStyle(
+                                          style: GoogleFonts.inter(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
                                             color:
@@ -2808,7 +3054,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                           DateFormat(
                                             'MMM d, yyyy',
                                           ).format(resource.createdAt),
-                                          style: TextStyle(
+                                          style: GoogleFonts.inter(
                                             fontSize: 12,
                                             color:
                                                 isDark
@@ -3231,13 +3477,30 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      backgroundColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder:
           (context) => StatefulBuilder(
             builder:
-                (context, setModalState) => Padding(
+                (context, setModalState) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? AppTheme.darkSurface
+                            : Colors.white,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
+                    border: Border.all(
+                      color:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? AppTheme.darkBorder
+                              : AppTheme.lightBorder,
+                    ),
+                  ),
                   padding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).viewInsets.bottom,
                     left: 16,
@@ -3251,20 +3514,63 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'Create Assignment',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+                          ShaderMask(
+                            shaderCallback:
+                                (bounds) => LinearGradient(
+                                  colors:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? [
+                                            AppTheme.darkSecondaryStart,
+                                            AppTheme.darkSecondaryEnd,
+                                          ]
+                                          : [
+                                            AppTheme.lightSecondaryStart,
+                                            AppTheme.lightSecondaryEnd,
+                                          ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ).createShader(bounds),
+                            child: Text(
+                              'Create Assignment',
+                              style: GoogleFonts.inter(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 24),
                           TextFormField(
                             controller: titleController,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Title',
-                              border: OutlineInputBorder(),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppTheme.darkBorder
+                                          : AppTheme.lightBorder,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppTheme.darkSecondaryStart
+                                          : AppTheme.lightSecondaryStart,
+                                  width: 2,
+                                ),
+                              ),
                             ),
+                            style: GoogleFonts.inter(),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Please enter a title';
@@ -3275,27 +3581,69 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: descriptionController,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Description (Optional)',
-                              border: OutlineInputBorder(),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppTheme.darkBorder
+                                          : AppTheme.lightBorder,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                borderSide: BorderSide(
+                                  color:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppTheme.darkSecondaryStart
+                                          : AppTheme.lightSecondaryStart,
+                                  width: 2,
+                                ),
+                              ),
                               alignLabelWithHint: true,
                             ),
+                            style: GoogleFonts.inter(),
                             maxLines: 5,
                           ),
                           const SizedBox(height: 16),
                           // Deadline picker
                           Container(
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey),
-                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppTheme.darkBorder
+                                        : AppTheme.lightBorder,
+                              ),
+                              borderRadius: BorderRadius.circular(28),
+                              color:
+                                  Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? AppTheme.darkSurface.withOpacity(0.3)
+                                      : Colors.grey.shade50,
                             ),
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Text(
+                                Text(
                                   'Submission Deadline',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? AppTheme.darkSecondaryStart
+                                            : AppTheme.lightSecondaryStart,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                                 ValueListenableBuilder<DateTime>(
@@ -3307,14 +3655,38 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                           DateFormat(
                                             'MMM d, yyyy • h:mm a',
                                           ).format(date),
-                                          style: const TextStyle(fontSize: 16),
+                                          style: GoogleFonts.inter(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
                                         const Spacer(),
                                         TextButton.icon(
-                                          icon: const Icon(
-                                            Icons.calendar_month,
+                                          icon: Icon(
+                                            Icons.calendar_month_outlined,
+                                            color:
+                                                Theme.of(context).brightness ==
+                                                        Brightness.dark
+                                                    ? AppTheme
+                                                        .darkSecondaryStart
+                                                    : AppTheme
+                                                        .lightSecondaryStart,
                                           ),
-                                          label: const Text('Change'),
+                                          label: Text(
+                                            'Change',
+                                            style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.w500,
+                                              color:
+                                                  Theme.of(
+                                                            context,
+                                                          ).brightness ==
+                                                          Brightness.dark
+                                                      ? AppTheme
+                                                          .darkSecondaryStart
+                                                      : AppTheme
+                                                          .lightSecondaryStart,
+                                            ),
+                                          ),
                                           onPressed: () async {
                                             final newDate =
                                                 await showDatePicker(
@@ -3361,20 +3733,38 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                           // File picker (optional)
                           Container(
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey),
-                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppTheme.darkBorder
+                                        : AppTheme.lightBorder,
+                              ),
+                              borderRadius: BorderRadius.circular(28),
+                              color:
+                                  Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? AppTheme.darkSurface.withOpacity(0.3)
+                                      : Colors.grey.shade50,
                             ),
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Text(
+                                Text(
                                   'Attachment (Optional)',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? AppTheme.darkSecondaryStart
+                                            : AppTheme.lightSecondaryStart,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                                 ElevatedButton.icon(
-                                  icon: const Icon(Icons.attach_file),
+                                  icon: const Icon(Icons.attach_file_outlined),
                                   label: const Text('Select File'),
                                   onPressed: () async {
                                     try {
@@ -3537,66 +3927,102 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                             ],
                           ),
 
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed:
-                                isUploading
-                                    ? null
-                                    : () async {
-                                      if (formKey.currentState!.validate()) {
-                                        try {
-                                          // Check if file still exists before proceeding
-                                          if (selectedFile != null &&
-                                              !await selectedFile!.exists()) {
+                          const SizedBox(height: 24),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? [
+                                          AppTheme.darkSecondaryStart,
+                                          AppTheme.darkSecondaryEnd,
+                                        ]
+                                        : [
+                                          AppTheme.lightSecondaryStart,
+                                          AppTheme.lightSecondaryEnd,
+                                        ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(
+                                color:
+                                    Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppTheme.darkBorder
+                                        : AppTheme.lightBorder,
+                                width: 1,
+                              ),
+                            ),
+                            child: ElevatedButton(
+                              onPressed:
+                                  isUploading
+                                      ? null
+                                      : () async {
+                                        if (formKey.currentState!.validate()) {
+                                          try {
+                                            // Check if file still exists before proceeding
+                                            if (selectedFile != null &&
+                                                !await selectedFile!.exists()) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'File no longer exists or cannot be accessed',
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                              return;
+                                            }
+
+                                            setModalState(() {
+                                              isUploading = true;
+                                            });
+
+                                            Navigator.pop(context, {
+                                              'title':
+                                                  titleController.text.trim(),
+                                              'description':
+                                                  descriptionController.text
+                                                      .trim(),
+                                              'deadline': deadlineDate.value,
+                                              'file': selectedFile,
+                                              'sendSms': sendSms,
+                                            });
+                                          } catch (e) {
+                                            print(
+                                              "Error preparing assignment: $e",
+                                            );
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
-                                              const SnackBar(
+                                              SnackBar(
                                                 content: Text(
-                                                  'File no longer exists or cannot be accessed',
+                                                  'Error preparing assignment: $e',
                                                 ),
                                                 backgroundColor: Colors.red,
                                               ),
                                             );
-                                            return;
+                                            setModalState(() {
+                                              isUploading = false;
+                                            });
                                           }
-
-                                          setModalState(() {
-                                            isUploading = true;
-                                          });
-
-                                          Navigator.pop(context, {
-                                            'title':
-                                                titleController.text.trim(),
-                                            'description':
-                                                descriptionController.text
-                                                    .trim(),
-                                            'deadline': deadlineDate.value,
-                                            'file': selectedFile,
-                                            'sendSms': sendSms,
-                                          });
-                                        } catch (e) {
-                                          print(
-                                            "Error preparing assignment: $e",
-                                          );
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Error preparing assignment: $e',
-                                              ),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
-                                          setModalState(() {
-                                            isUploading = false;
-                                          });
                                         }
-                                      }
-                                    },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                                      },
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.transparent,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(28),
+                                ),
+                              ),
                               child:
                                   isUploading
                                       ? const Row(
@@ -3614,7 +4040,13 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                           Text('Preparing...'),
                                         ],
                                       )
-                                      : const Text('Create Assignment'),
+                                      : Text(
+                                        'Create Assignment',
+                                        style: GoogleFonts.inter(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -3777,7 +4209,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                 ),
                                 const SizedBox(height: 8),
                                 ElevatedButton.icon(
-                                  icon: const Icon(Icons.attach_file),
+                                  icon: const Icon(Icons.attach_file_outlined),
                                   label: const Text('Select File'),
                                   onPressed: () async {
                                     try {
@@ -4169,41 +4601,18 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                             isLecturer
                                 ? () => _showAssignmentOptions(assignment)
                                 : null,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(28),
                         child: Container(
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors:
-                                  isDark
-                                      ? [
-                                        AppTheme.darkSecondaryStart.withOpacity(
-                                          0.1,
-                                        ),
-                                        AppTheme.darkSecondaryEnd.withOpacity(
-                                          0.05,
-                                        ),
-                                      ]
-                                      : [
-                                        AppTheme.lightSecondaryStart
-                                            .withOpacity(0.1),
-                                        AppTheme.lightSecondaryEnd.withOpacity(
-                                          0.05,
-                                        ),
-                                      ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
+                            color: isDark ? AppTheme.darkSurface : Colors.white,
+                            borderRadius: BorderRadius.circular(28),
                             border: Border.all(
                               color:
                                   isOverdue && !isLecturer && !hasSubmitted
                                       ? Colors.red.withOpacity(0.3)
                                       : isDark
-                                      ? AppTheme.darkSecondaryStart.withOpacity(
-                                        0.2,
-                                      )
-                                      : AppTheme.lightSecondaryStart
-                                          .withOpacity(0.2),
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder,
                             ),
                           ),
                           padding: const EdgeInsets.all(16),
@@ -4250,19 +4659,19 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                       children: [
                                         Text(
                                           assignment.title,
-                                          style: TextStyle(
+                                          style: GoogleFonts.inter(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
                                             color:
                                                 isDark
-                                                    ? Colors.white
-                                                    : Colors.black87,
+                                                    ? AppTheme.darkTextPrimary
+                                                    : AppTheme.lightTextPrimary,
                                           ),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
                                           'Due ${DateFormat('MMM d, yyyy • h:mm a').format(assignment.deadline)}',
-                                          style: TextStyle(
+                                          style: GoogleFonts.inter(
                                             fontSize: 12,
                                             color:
                                                 isOverdue &&
@@ -4270,8 +4679,9 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                                         !isLecturer
                                                     ? Colors.red
                                                     : isDark
-                                                    ? Colors.white60
-                                                    : Colors.black45,
+                                                    ? AppTheme.darkTextSecondary
+                                                    : AppTheme
+                                                        .lightTextSecondary,
                                             fontWeight:
                                                 isOverdue &&
                                                         !hasSubmitted &&
@@ -4631,17 +5041,10 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color:
-                      isDark
-                          ? AppTheme.darkTextSecondary.withOpacity(0.1)
-                          : AppTheme.lightTextSecondary.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -4649,20 +5052,12 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                 // Header
                 Container(
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors:
-                          isDark
-                              ? [
-                                AppTheme.darkSecondaryStart,
-                                AppTheme.darkSecondaryEnd,
-                              ]
-                              : [
-                                AppTheme.lightSecondaryStart,
-                                AppTheme.lightSecondaryEnd,
-                              ],
-                    ),
+                    color:
+                        isDark
+                            ? AppTheme.darkSecondaryStart
+                            : AppTheme.lightSecondaryStart,
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
+                      top: Radius.circular(28),
                     ),
                   ),
                   padding: const EdgeInsets.all(20),
@@ -4685,18 +5080,29 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              widget.classModel.name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
+                            ShaderMask(
+                              shaderCallback:
+                                  (bounds) => LinearGradient(
+                                    colors: [
+                                      Colors.white,
+                                      Colors.white.withOpacity(0.8),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ).createShader(bounds),
+                              child: Text(
+                                widget.classModel.name,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               widget.classModel.courseCode,
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Colors.white.withOpacity(0.9),
                                 fontSize: 14,
                               ),
@@ -4747,16 +5153,14 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: (isDark
-                                    ? AppTheme.darkSecondaryStart
-                                    : AppTheme.lightSecondaryStart)
-                                .withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            color:
+                                (isDark ? AppTheme.darkSurface : Colors.white),
+                            borderRadius: BorderRadius.circular(28),
                             border: Border.all(
-                              color: (isDark
-                                      ? AppTheme.darkSecondaryStart
-                                      : AppTheme.lightSecondaryStart)
-                                  .withOpacity(0.2),
+                              color:
+                                  isDark
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder,
                             ),
                           ),
                           child: Row(
@@ -4776,7 +5180,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                   children: [
                                     Text(
                                       'Class Code',
-                                      style: TextStyle(
+                                      style: GoogleFonts.inter(
                                         color:
                                             isDark
                                                 ? AppTheme.darkTextSecondary
@@ -4785,16 +5189,33 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text(
-                                      widget.classModel.code!,
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color:
-                                            isDark
-                                                ? AppTheme.darkSecondaryStart
-                                                : AppTheme.lightSecondaryStart,
-                                        letterSpacing: 1,
+                                    ShaderMask(
+                                      shaderCallback:
+                                          (bounds) => LinearGradient(
+                                            colors:
+                                                isDark
+                                                    ? [
+                                                      AppTheme
+                                                          .darkSecondaryStart,
+                                                      AppTheme.darkSecondaryEnd,
+                                                    ]
+                                                    : [
+                                                      AppTheme
+                                                          .lightSecondaryStart,
+                                                      AppTheme
+                                                          .lightSecondaryEnd,
+                                                    ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ).createShader(bounds),
+                                      child: Text(
+                                        widget.classModel.code!,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          letterSpacing: 1,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -4844,13 +5265,19 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: (isDark
                     ? AppTheme.darkSecondaryStart
                     : AppTheme.lightSecondaryStart)
                 .withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: (isDark
+                      ? AppTheme.darkSecondaryStart
+                      : AppTheme.lightSecondaryStart)
+                  .withOpacity(0.2),
+            ),
           ),
           child: Icon(
             icon,
@@ -4868,7 +5295,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   color:
                       isDark
                           ? AppTheme.darkTextSecondary
@@ -4879,7 +5306,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
               const SizedBox(height: 4),
               Text(
                 value,
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color:
