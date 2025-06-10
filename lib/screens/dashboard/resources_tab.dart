@@ -14,6 +14,7 @@ import '../../widgets/gradient_container.dart';
 import '../../models/class_model.dart';
 import '../../models/resource_model.dart';
 import '../../models/assignment_model.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ResourcesTab extends StatefulWidget {
   const ResourcesTab({Key? key}) : super(key: key);
@@ -35,15 +36,13 @@ class _ResourcesTabState extends State<ResourcesTab>
   Map<String, List<ResourceModel>> _resourcesByClass = {};
   Map<String, List<AssignmentModel>> _assignmentsByClass = {};
 
+  // Track which classes are expanded
+  Set<String> _expandedClasses = {};
+
   // Loading states
   bool _isLoading = false;
   bool _isInitialLoad = true;
   String? _error;
-
-  // Cache management
-  DateTime? _lastCacheUpdate;
-  static const Duration _cacheValidDuration = Duration(minutes: 5);
-  bool _hasDataLoaded = false;
 
   // Download tracking
   Map<String, double> _downloadProgress = {};
@@ -69,9 +68,9 @@ class _ResourcesTabState extends State<ResourcesTab>
 
     _animationController.forward();
 
-    // Load cached data and check if refresh is needed
+    // Load data immediately
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadCachedDataAndRefreshIfNeeded();
+      _loadAllData();
     });
 
     // Load downloaded files info
@@ -85,116 +84,15 @@ class _ResourcesTabState extends State<ResourcesTab>
     super.dispose();
   }
 
-  // Load cached data and refresh if needed
-  Future<void> _loadCachedDataAndRefreshIfNeeded() async {
-    // Load cached data first
-    await _loadCachedData();
-
-    // Check if we need to refresh
-    if (_shouldRefreshData()) {
-      await _loadAllData(forceRefresh: false);
-    }
-  }
-
-  // Load cached data from SharedPreferences
-  Future<void> _loadCachedData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Load cache timestamp
-      final cacheTimestamp = prefs.getInt('resources_cache_timestamp');
-      if (cacheTimestamp != null) {
-        _lastCacheUpdate = DateTime.fromMillisecondsSinceEpoch(cacheTimestamp);
+  // Toggle class expansion
+  void _toggleClassExpansion(String classId) {
+    setState(() {
+      if (_expandedClasses.contains(classId)) {
+        _expandedClasses.remove(classId);
+      } else {
+        _expandedClasses.add(classId);
       }
-
-      // Load cached classes
-      final classesJson = prefs.getString('resources_cache_classes');
-      if (classesJson != null) {
-        final classesList = json.decode(classesJson) as List;
-        _classes =
-            classesList.map((json) => ClassModel.fromJson(json)).toList();
-      }
-
-      // Load cached resources
-      final resourcesJson = prefs.getString('resources_cache_resources');
-      if (resourcesJson != null) {
-        final resourcesList = json.decode(resourcesJson) as List;
-        _resources =
-            resourcesList.map((json) => ResourceModel.fromJson(json)).toList();
-      }
-
-      // Load cached assignments
-      final assignmentsJson = prefs.getString('resources_cache_assignments');
-      if (assignmentsJson != null) {
-        final assignmentsList = json.decode(assignmentsJson) as List;
-        _assignments =
-            assignmentsList
-                .map((json) => AssignmentModel.fromJson(json))
-                .toList();
-      }
-
-      // Rebuild maps if we have cached data
-      if (_classes.isNotEmpty) {
-        _rebuildDataMaps();
-        setState(() {
-          _hasDataLoaded = true;
-          _isInitialLoad = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading cached data: $e');
-      // If cache loading fails, we'll just refresh from server
-    }
-  }
-
-  // Save data to cache
-  Future<void> _saveCacheData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Save cache timestamp
-      _lastCacheUpdate = DateTime.now();
-      await prefs.setInt(
-        'resources_cache_timestamp',
-        _lastCacheUpdate!.millisecondsSinceEpoch,
-      );
-
-      // Save classes
-      await prefs.setString(
-        'resources_cache_classes',
-        json.encode(_classes.map((c) => c.toJson()).toList()),
-      );
-
-      // Save resources
-      await prefs.setString(
-        'resources_cache_resources',
-        json.encode(_resources.map((r) => r.toJson()).toList()),
-      );
-
-      // Save assignments
-      await prefs.setString(
-        'resources_cache_assignments',
-        json.encode(_assignments.map((a) => a.toJson()).toList()),
-      );
-    } catch (e) {
-      print('Error saving cache data: $e');
-    }
-  }
-
-  // Check if data should be refreshed
-  bool _shouldRefreshData() {
-    // Always refresh on initial load if no data
-    if (!_hasDataLoaded || _classes.isEmpty) {
-      return true;
-    }
-
-    // Check if cache is expired
-    if (_lastCacheUpdate == null) {
-      return true;
-    }
-
-    final timeSinceLastUpdate = DateTime.now().difference(_lastCacheUpdate!);
-    return timeSinceLastUpdate > _cacheValidDuration;
+    });
   }
 
   // Rebuild data maps from loaded data
@@ -218,14 +116,11 @@ class _ResourcesTabState extends State<ResourcesTab>
   }
 
   // Load all data (classes, resources, assignments)
-  Future<void> _loadAllData({bool forceRefresh = true}) async {
-    // Don't show loading for background refreshes
-    if (forceRefresh || _isInitialLoad) {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-    }
+  Future<void> _loadAllData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -267,12 +162,8 @@ class _ResourcesTabState extends State<ResourcesTab>
         _resourcesByClass = resourcesByClass;
         _assignmentsByClass = assignmentsByClass;
         _isLoading = false;
-        _hasDataLoaded = true;
         _isInitialLoad = false;
       });
-
-      // Save to cache
-      await _saveCacheData();
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -284,79 +175,7 @@ class _ResourcesTabState extends State<ResourcesTab>
 
   // Refresh all data (force refresh from server)
   Future<void> _refreshAll() async {
-    await _loadAllData(forceRefresh: true);
-  }
-
-  // Smart refresh - only refreshes if cache is expired
-  Future<void> _smartRefresh() async {
-    if (_shouldRefreshData()) {
-      await _loadAllData(forceRefresh: false);
-    }
-  }
-
-  // Force refresh from server (ignores cache)
-  Future<void> _forceRefresh() async {
-    await _loadAllData(forceRefresh: true);
-  }
-
-  // Clear cache and force refresh
-  Future<void> _clearCacheAndRefresh() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('resources_cache_timestamp');
-      await prefs.remove('resources_cache_classes');
-      await prefs.remove('resources_cache_resources');
-      await prefs.remove('resources_cache_assignments');
-
-      _lastCacheUpdate = null;
-      _hasDataLoaded = false;
-
-      await _loadAllData(forceRefresh: true);
-    } catch (e) {
-      print('Error clearing cache: $e');
-    }
-  }
-
-  // Clear error
-  void _clearError() {
-    setState(() {
-      _error = null;
-    });
-  }
-
-  // Invalidate cache and refresh (call this when new data is added)
-  static void invalidateCache() {
-    _invalidateStaticCache();
-  }
-
-  static void _invalidateStaticCache() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('resources_cache_timestamp');
-    } catch (e) {
-      print('Error invalidating cache: $e');
-    }
-  }
-
-  // Check if we have valid cached data
-  bool get hasValidCache =>
-      _lastCacheUpdate != null &&
-      DateTime.now().difference(_lastCacheUpdate!) < _cacheValidDuration;
-
-  // Get cache age
-  String get cacheAge {
-    if (_lastCacheUpdate == null) return 'No cache';
-
-    final age = DateTime.now().difference(_lastCacheUpdate!);
-    if (age.inMinutes < 1) {
-      return 'Just now';
-    } else if (age.inMinutes < 60) {
-      return '${age.inMinutes}m ago';
-    } else if (age.inHours < 24) {
-      return '${age.inHours}h ago';
-    } else {
-      return '${age.inDays}d ago';
-    }
+    await _loadAllData();
   }
 
   // Load downloaded files info
@@ -778,6 +597,13 @@ class _ResourcesTabState extends State<ResourcesTab>
     );
   }
 
+  // Clear error
+  void _clearError() {
+    setState(() {
+      _error = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
@@ -819,40 +645,14 @@ class _ResourcesTabState extends State<ResourcesTab>
                         .createShader(bounds),
                 child: Text(
                   'Resources',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  style: GoogleFonts.inter(
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
               ),
               const Spacer(),
-              if (_lastCacheUpdate != null && !_shouldRefreshData())
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.cached, size: 14, color: Colors.green),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Cached',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.green,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(width: 8),
               if (_isLoading)
                 SizedBox(
                   width: 20,
@@ -871,55 +671,18 @@ class _ResourcesTabState extends State<ResourcesTab>
                   ),
                 )
               else
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
-                  tooltip: 'Refresh Options',
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'smart':
-                        _smartRefresh();
-                        break;
-                      case 'force':
-                        _forceRefresh();
-                        break;
-                      case 'clear':
-                        _clearCacheAndRefresh();
-                        break;
-                    }
-                  },
-                  itemBuilder:
-                      (context) => [
-                        const PopupMenuItem(
-                          value: 'smart',
-                          child: Row(
-                            children: [
-                              Icon(Icons.refresh, size: 20),
-                              SizedBox(width: 8),
-                              Text('Smart Refresh'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'force',
-                          child: Row(
-                            children: [
-                              Icon(Icons.refresh_outlined, size: 20),
-                              SizedBox(width: 8),
-                              Text('Force Refresh'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'clear',
-                          child: Row(
-                            children: [
-                              Icon(Icons.clear_all, size: 20),
-                              SizedBox(width: 8),
-                              Text('Clear Cache'),
-                            ],
-                          ),
-                        ),
-                      ],
+                IconButton(
+                  icon: const Icon(Icons.refresh_outlined),
+                  tooltip: 'Refresh',
+                  onPressed: _refreshAll,
+                  color:
+                      isLecturer
+                          ? (isDark
+                              ? AppTheme.darkSecondaryStart
+                              : AppTheme.lightSecondaryStart)
+                          : (isDark
+                              ? AppTheme.darkPrimaryStart
+                              : AppTheme.lightPrimaryStart),
                 ),
             ],
           ),
@@ -930,7 +693,11 @@ class _ResourcesTabState extends State<ResourcesTab>
           Container(
             decoration: BoxDecoration(
               color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                width: 1,
+              ),
             ),
             child: Row(
               children: [
@@ -969,12 +736,12 @@ class _ResourcesTabState extends State<ResourcesTab>
                         ? AppTheme.secondaryGradient(isDark)
                         : AppTheme.primaryGradient(isDark))
                     : null,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(28),
           ),
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: GoogleFonts.inter(
               color:
                   isSelected
                       ? Colors.white
@@ -1008,9 +775,9 @@ class _ResourcesTabState extends State<ResourcesTab>
   }
 
   Widget _buildErrorState(BuildContext context, bool isLecturer, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Center(
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1018,9 +785,14 @@ class _ResourcesTabState extends State<ResourcesTab>
             const SizedBox(height: 16),
             Text(
               'Error Loading Resources',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color:
+                    isDark
+                        ? AppTheme.darkTextPrimary
+                        : AppTheme.lightTextPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1051,6 +823,13 @@ class _ResourcesTabState extends State<ResourcesTab>
                             ? AppTheme.darkPrimaryStart
                             : AppTheme.lightPrimaryStart),
                 foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -1064,30 +843,33 @@ class _ResourcesTabState extends State<ResourcesTab>
     bool isLecturer,
     bool isDark,
   ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Statistics cards
-          _buildStatsGrid(context, isLecturer, isDark),
+    return RefreshIndicator(
+      onRefresh: _refreshAll,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Statistics cards
+            _buildStatsGrid(context, isLecturer, isDark),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // Recent resources and assignments
-          if (_resources.isNotEmpty || _assignments.isNotEmpty) ...[
-            Text(
-              'Recent Activity',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildRecentActivity(context, isLecturer, isDark),
-          ] else ...[
-            _buildEmptyState(context, isLecturer, isDark),
+            // Recent resources and assignments
+            if (_resources.isNotEmpty || _assignments.isNotEmpty) ...[
+              Text(
+                'Recent Activity',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _buildRecentActivity(context, isLecturer, isDark),
+            ] else ...[
+              _buildEmptyState(context, isLecturer, isDark),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -1101,21 +883,27 @@ class _ResourcesTabState extends State<ResourcesTab>
       return _buildEmptyClassesState(context, isLecturer, isDark);
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: _classes.length,
-      itemBuilder: (context, index) {
-        final classModel = _classes[index];
-        final resources = _resourcesByClass[classModel.id] ?? [];
+    return RefreshIndicator(
+      onRefresh: _refreshAll,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: _classes.length,
+        itemBuilder: (context, index) {
+          final classModel = _classes[index];
+          final resources = _resourcesByClass[classModel.id] ?? [];
+          final isExpanded = _expandedClasses.contains(classModel.id);
 
-        return _buildClassResourcesSection(
-          context,
-          classModel,
-          resources,
-          isLecturer,
-          isDark,
-        );
-      },
+          return _buildClassDropdown(
+            context,
+            classModel,
+            resources,
+            isExpanded,
+            isLecturer,
+            isDark,
+            isResourcesView: true,
+          );
+        },
+      ),
     );
   }
 
@@ -1128,21 +916,27 @@ class _ResourcesTabState extends State<ResourcesTab>
       return _buildEmptyClassesState(context, isLecturer, isDark);
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: _classes.length,
-      itemBuilder: (context, index) {
-        final classModel = _classes[index];
-        final assignments = _assignmentsByClass[classModel.id] ?? [];
+    return RefreshIndicator(
+      onRefresh: _refreshAll,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: _classes.length,
+        itemBuilder: (context, index) {
+          final classModel = _classes[index];
+          final assignments = _assignmentsByClass[classModel.id] ?? [];
+          final isExpanded = _expandedClasses.contains(classModel.id);
 
-        return _buildClassAssignmentsSection(
-          context,
-          classModel,
-          assignments,
-          isLecturer,
-          isDark,
-        );
-      },
+          return _buildClassDropdown(
+            context,
+            classModel,
+            assignments,
+            isExpanded,
+            isLecturer,
+            isDark,
+            isResourcesView: false,
+          );
+        },
+      ),
     );
   }
 
@@ -1158,28 +952,28 @@ class _ResourcesTabState extends State<ResourcesTab>
         _buildStatCard(
           'Classes',
           '${_classes.length}',
-          Icons.class_,
+          Icons.class_outlined,
           isLecturer,
           isDark,
         ),
         _buildStatCard(
           'Resources',
           '${_resources.length}',
-          Icons.folder,
+          Icons.folder_outlined,
           isLecturer,
           isDark,
         ),
         _buildStatCard(
           'Assignments',
           '${_assignments.length}',
-          Icons.assignment,
+          Icons.assignment_outlined,
           isLecturer,
           isDark,
         ),
         _buildStatCard(
           'Recent Items',
           '${(_resources.take(5).length + _assignments.take(5).length)}',
-          Icons.schedule,
+          Icons.schedule_outlined,
           isLecturer,
           isDark,
         ),
@@ -1198,9 +992,9 @@ class _ResourcesTabState extends State<ResourcesTab>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: (isDark ? Colors.grey[800] : Colors.grey[200])!,
+          color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
           width: 1,
         ),
       ),
@@ -1208,31 +1002,34 @@ class _ResourcesTabState extends State<ResourcesTab>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               gradient:
                   isLecturer
                       ? AppTheme.secondaryGradient(isDark)
                       : AppTheme.primaryGradient(isDark),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(icon, color: Colors.white, size: 20),
           ),
           const Spacer(),
           Text(
             count,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            style: GoogleFonts.inter(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color:
+                  isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+            ),
           ),
           Text(
             title,
-            style: TextStyle(
+            style: GoogleFonts.inter(
               color:
                   isDark
                       ? AppTheme.darkTextSecondary
                       : AppTheme.lightTextSecondary,
-              fontSize: 12,
+              fontSize: 14,
             ),
           ),
         ],
@@ -1267,29 +1064,65 @@ class _ResourcesTabState extends State<ResourcesTab>
   }
 
   Widget _buildEmptyState(BuildContext context, bool isLecturer, bool isDark) {
-    return GradientContainer(
-      useSecondaryGradient: isLecturer,
-      padding: const EdgeInsets.all(24),
-      borderRadius: 16,
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+          width: 1,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(
-            Icons.folder_open,
-            size: 48,
-            color:
-                isLecturer
-                    ? (isDark
-                        ? AppTheme.darkSecondaryStart
-                        : AppTheme.lightSecondaryStart)
-                    : (isDark
-                        ? AppTheme.darkPrimaryStart
-                        : AppTheme.lightPrimaryStart),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color:
+                  isLecturer
+                      ? (isDark
+                          ? AppTheme.darkSecondaryStart.withOpacity(0.1)
+                          : AppTheme.lightSecondaryStart.withOpacity(0.1))
+                      : (isDark
+                          ? AppTheme.darkPrimaryStart.withOpacity(0.1)
+                          : AppTheme.lightPrimaryStart.withOpacity(0.1)),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color:
+                    isLecturer
+                        ? (isDark
+                            ? AppTheme.darkSecondaryStart.withOpacity(0.3)
+                            : AppTheme.lightSecondaryStart.withOpacity(0.3))
+                        : (isDark
+                            ? AppTheme.darkPrimaryStart.withOpacity(0.3)
+                            : AppTheme.lightPrimaryStart.withOpacity(0.3)),
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              Icons.folder_outlined,
+              size: 48,
+              color:
+                  isLecturer
+                      ? (isDark
+                          ? AppTheme.darkSecondaryStart
+                          : AppTheme.lightSecondaryStart)
+                      : (isDark
+                          ? AppTheme.darkPrimaryStart
+                          : AppTheme.lightPrimaryStart),
+            ),
           ),
-          const SizedBox(height: 16),
-          const Text(
+          const SizedBox(height: 24),
+          Text(
             'No Resources Yet',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color:
+                  isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
@@ -1297,7 +1130,8 @@ class _ResourcesTabState extends State<ResourcesTab>
             isLecturer
                 ? 'Upload resources for your classes to get started'
                 : 'Your course resources will appear here',
-            style: TextStyle(
+            style: GoogleFonts.inter(
+              fontSize: 14,
               color:
                   isDark
                       ? AppTheme.darkTextSecondary
@@ -1321,29 +1155,70 @@ class _ResourcesTabState extends State<ResourcesTab>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.school_outlined,
-              size: 64,
-              color: isDark ? Colors.grey[600] : Colors.grey[400],
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color:
+                    isLecturer
+                        ? (isDark
+                            ? AppTheme.darkSecondaryStart.withOpacity(0.1)
+                            : AppTheme.lightSecondaryStart.withOpacity(0.1))
+                        : (isDark
+                            ? AppTheme.darkPrimaryStart.withOpacity(0.1)
+                            : AppTheme.lightPrimaryStart.withOpacity(0.1)),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color:
+                      isLecturer
+                          ? (isDark
+                              ? AppTheme.darkSecondaryStart.withOpacity(0.3)
+                              : AppTheme.lightSecondaryStart.withOpacity(0.3))
+                          : (isDark
+                              ? AppTheme.darkPrimaryStart.withOpacity(0.3)
+                              : AppTheme.lightPrimaryStart.withOpacity(0.3)),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                isLecturer ? Icons.school_outlined : Icons.class_outlined,
+                size: 48,
+                color:
+                    isLecturer
+                        ? (isDark
+                            ? AppTheme.darkSecondaryStart
+                            : AppTheme.lightSecondaryStart)
+                        : (isDark
+                            ? AppTheme.darkPrimaryStart
+                            : AppTheme.lightPrimaryStart),
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(
               isLecturer ? 'No Classes Created' : 'No Classes Joined',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isLecturer
-                  ? 'Create your first class to start sharing resources'
-                  : 'Join a class to access resources and assignments',
-              textAlign: TextAlign.center,
-              style: TextStyle(
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
                 color:
                     isDark
-                        ? AppTheme.darkTextSecondary
-                        : AppTheme.lightTextSecondary,
+                        ? AppTheme.darkTextPrimary
+                        : AppTheme.lightTextPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                isLecturer
+                    ? 'Create your first class to start sharing resources'
+                    : 'Join a class to access resources and assignments',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color:
+                      isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary,
+                ),
               ),
             ),
           ],
@@ -1352,197 +1227,180 @@ class _ResourcesTabState extends State<ResourcesTab>
     );
   }
 
-  Widget _buildClassResourcesSection(
+  // Build class dropdown widget for both resources and assignments
+  Widget _buildClassDropdown(
     BuildContext context,
     ClassModel classModel,
-    List<ResourceModel> resources,
+    List<dynamic> items,
+    bool isExpanded,
     bool isLecturer,
-    bool isDark,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Class header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient:
-                  isLecturer
-                      ? AppTheme.secondaryGradient(isDark)
-                      : AppTheme.primaryGradient(isDark),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.class_, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        classModel.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        classModel.courseCode,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${resources.length} resources',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+    bool isDark, {
+    required bool isResourcesView,
+  }) {
+    final itemsCount = items.length;
+    final itemsLabel = isResourcesView ? 'resources' : 'assignments';
 
-          const SizedBox(height: 12),
-
-          // Resources list
-          if (resources.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'No resources uploaded yet',
-                style: TextStyle(
-                  color:
-                      isDark
-                          ? AppTheme.darkTextSecondary
-                          : AppTheme.lightTextSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            )
-          else
-            ...resources.map(
-              (resource) =>
-                  _buildResourceCard(resource, classModel, isLecturer, isDark),
-            ),
-        ],
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(
+          color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+          width: 1,
+        ),
       ),
-    );
-  }
-
-  Widget _buildClassAssignmentsSection(
-    BuildContext context,
-    ClassModel classModel,
-    List<AssignmentModel> assignments,
-    bool isLecturer,
-    bool isDark,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
+      color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Class header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient:
-                  isLecturer
-                      ? AppTheme.secondaryGradient(isDark)
-                      : AppTheme.primaryGradient(isDark),
-              borderRadius: BorderRadius.circular(12),
+          // Header (always visible)
+          InkWell(
+            borderRadius: BorderRadius.vertical(
+              top: const Radius.circular(28),
+              bottom: isExpanded ? Radius.zero : const Radius.circular(28),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.assignment, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        classModel.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        classModel.courseCode,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${assignments.length} assignments',
-                    style: const TextStyle(
+            onTap: () => _toggleClassExpansion(classModel.id),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient:
+                          isLecturer
+                              ? AppTheme.secondaryGradient(isDark)
+                              : AppTheme.primaryGradient(isDark),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      isResourcesView
+                          ? Icons.folder_outlined
+                          : Icons.assignment_outlined,
                       color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      size: 20,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          classModel.name,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color:
+                                isDark
+                                    ? AppTheme.darkTextPrimary
+                                    : AppTheme.lightTextPrimary,
+                          ),
+                        ),
+                        Text(
+                          classModel.courseCode,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color:
+                                isDark
+                                    ? AppTheme.darkTextSecondary
+                                    : AppTheme.lightTextSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: (isLecturer
+                              ? AppTheme.lightSecondaryStart
+                              : AppTheme.lightPrimaryStart)
+                          .withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: Text(
+                      '$itemsCount $itemsLabel',
+                      style: GoogleFonts.inter(
+                        color:
+                            isLecturer
+                                ? (isDark
+                                    ? AppTheme.darkSecondaryStart
+                                    : AppTheme.lightSecondaryStart)
+                                : (isDark
+                                    ? AppTheme.darkPrimaryStart
+                                    : AppTheme.lightPrimaryStart),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color:
+                        isDark
+                            ? AppTheme.darkTextSecondary
+                            : AppTheme.lightTextSecondary,
+                  ),
+                ],
+              ),
             ),
           ),
 
-          const SizedBox(height: 12),
-
-          // Assignments list
-          if (assignments.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'No assignments created yet',
-                style: TextStyle(
-                  color:
-                      isDark
-                          ? AppTheme.darkTextSecondary
-                          : AppTheme.lightTextSecondary,
+          // Content (visible when expanded)
+          if (isExpanded)
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(28),
                 ),
-                textAlign: TextAlign.center,
+                color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
               ),
-            )
-          else
-            ...assignments.map(
-              (assignment) => _buildAssignmentCard(
-                assignment,
-                classModel,
-                isLecturer,
-                isDark,
+              child: Column(
+                children: [
+                  Divider(
+                    height: 1,
+                    color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                  ),
+                  if (items.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        isResourcesView
+                            ? 'No resources uploaded yet'
+                            : 'No assignments created yet',
+                        style: GoogleFonts.inter(
+                          color:
+                              isDark
+                                  ? AppTheme.darkTextSecondary
+                                  : AppTheme.lightTextSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else
+                    ...items.map((item) {
+                      if (isResourcesView) {
+                        return _buildResourceCard(
+                          item as ResourceModel,
+                          classModel,
+                          isLecturer,
+                          isDark,
+                        );
+                      } else {
+                        return _buildAssignmentCard(
+                          item as AssignmentModel,
+                          classModel,
+                          isLecturer,
+                          isDark,
+                        );
+                      }
+                    }).toList(),
+                ],
               ),
             ),
         ],
@@ -1560,21 +1418,22 @@ class _ResourcesTabState extends State<ResourcesTab>
     final bool isDownloaded = _downloadedFiles.containsKey(resource.id);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: isDownloaded ? () => _openFile(resource) : null,
           onLongPress:
               isLecturer ? () => _showResourceDeleteOptions(resource) : null,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(28),
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-              borderRadius: BorderRadius.circular(12),
+              color: isDark ? Colors.black12 : Colors.white,
+              borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: (isDark ? Colors.grey[800] : Colors.grey[200])!,
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                width: 1,
               ),
             ),
             child: Row(
@@ -1583,7 +1442,7 @@ class _ResourcesTabState extends State<ResourcesTab>
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: _getFileColor(resource.fileType).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Icon(
                     _getFileIconData(resource.fileType),
@@ -1598,7 +1457,7 @@ class _ResourcesTabState extends State<ResourcesTab>
                     children: [
                       Text(
                         resource.title,
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontWeight: FontWeight.bold,
                           color:
                               isDark
@@ -1609,7 +1468,7 @@ class _ResourcesTabState extends State<ResourcesTab>
                       const SizedBox(height: 4),
                       Text(
                         '${classModel.courseCode} • ${DateFormat('MMM d').format(resource.createdAt)}',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 12,
                           color:
                               isDark
@@ -1622,9 +1481,17 @@ class _ResourcesTabState extends State<ResourcesTab>
                 ),
                 if (isDownloaded)
                   IconButton(
-                    icon: const Icon(Icons.open_in_new, size: 20),
+                    icon: const Icon(Icons.open_in_new_outlined, size: 20),
                     onPressed: () => _openFile(resource),
                     tooltip: 'Open',
+                    color:
+                        isLecturer
+                            ? (isDark
+                                ? AppTheme.darkSecondaryStart
+                                : AppTheme.lightSecondaryStart)
+                            : (isDark
+                                ? AppTheme.darkPrimaryStart
+                                : AppTheme.lightPrimaryStart),
                   )
                 else if (isDownloading)
                   SizedBox(
@@ -1646,9 +1513,17 @@ class _ResourcesTabState extends State<ResourcesTab>
                   )
                 else
                   IconButton(
-                    icon: const Icon(Icons.download, size: 20),
+                    icon: const Icon(Icons.download_outlined, size: 20),
                     onPressed: () => _downloadFile(resource),
                     tooltip: 'Download',
+                    color:
+                        isLecturer
+                            ? (isDark
+                                ? AppTheme.darkSecondaryStart
+                                : AppTheme.lightSecondaryStart)
+                            : (isDark
+                                ? AppTheme.darkPrimaryStart
+                                : AppTheme.lightPrimaryStart),
                   ),
               ],
             ),
@@ -1671,7 +1546,7 @@ class _ResourcesTabState extends State<ResourcesTab>
     final bool hasFile = assignment.fileUrl != null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -1683,14 +1558,15 @@ class _ResourcesTabState extends State<ResourcesTab>
               isLecturer
                   ? () => _showAssignmentDeleteOptions(assignment)
                   : null,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(28),
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-              borderRadius: BorderRadius.circular(12),
+              color: isDark ? Colors.black12 : Colors.white,
+              borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: (isDark ? Colors.grey[800] : Colors.grey[200])!,
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                width: 1,
               ),
             ),
             child: Row(
@@ -1702,12 +1578,12 @@ class _ResourcesTabState extends State<ResourcesTab>
                             ? _getFileColor(assignment.fileType)
                             : Colors.grey)
                         .withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Icon(
                     hasFile
                         ? _getFileIconData(assignment.fileType)
-                        : Icons.assignment,
+                        : Icons.assignment_outlined,
                     color:
                         hasFile
                             ? _getFileColor(assignment.fileType)
@@ -1722,7 +1598,7 @@ class _ResourcesTabState extends State<ResourcesTab>
                     children: [
                       Text(
                         assignment.title,
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontWeight: FontWeight.bold,
                           color:
                               isDark
@@ -1733,7 +1609,7 @@ class _ResourcesTabState extends State<ResourcesTab>
                       const SizedBox(height: 4),
                       Text(
                         '${classModel.courseCode} • Due ${DateFormat('MMM d').format(assignment.deadline)}',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 12,
                           color:
                               isDark
@@ -1747,9 +1623,17 @@ class _ResourcesTabState extends State<ResourcesTab>
                 if (hasFile) ...[
                   if (isDownloaded)
                     IconButton(
-                      icon: const Icon(Icons.open_in_new, size: 20),
+                      icon: const Icon(Icons.open_in_new_outlined, size: 20),
                       onPressed: () => _openAssignmentFile(assignment),
                       tooltip: 'Open',
+                      color:
+                          isLecturer
+                              ? (isDark
+                                  ? AppTheme.darkSecondaryStart
+                                  : AppTheme.lightSecondaryStart)
+                              : (isDark
+                                  ? AppTheme.darkPrimaryStart
+                                  : AppTheme.lightPrimaryStart),
                     )
                   else if (isDownloading)
                     SizedBox(
@@ -1771,9 +1655,17 @@ class _ResourcesTabState extends State<ResourcesTab>
                     )
                   else
                     IconButton(
-                      icon: const Icon(Icons.download, size: 20),
+                      icon: const Icon(Icons.download_outlined, size: 20),
                       onPressed: () => _downloadAssignmentFile(assignment),
                       tooltip: 'Download',
+                      color:
+                          isLecturer
+                              ? (isDark
+                                  ? AppTheme.darkSecondaryStart
+                                  : AppTheme.lightSecondaryStart)
+                              : (isDark
+                                  ? AppTheme.darkPrimaryStart
+                                  : AppTheme.lightPrimaryStart),
                     ),
                 ],
               ],
