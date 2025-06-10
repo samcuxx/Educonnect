@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/gradient_button.dart';
-import '../../widgets/gradient_container.dart';
-import '../../widgets/theme_toggle_button.dart';
 import '../../utils/app_theme.dart';
 import 'login_screen.dart';
 
@@ -109,23 +107,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             const SizedBox(height: 20),
             Text(
               'Password Reset Successful!',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               'Your password has been successfully reset. You can now sign in with your new password.',
-              style: TextStyle(
-                fontSize: 14,
-                color:
-                    isDark
-                        ? AppTheme.darkTextSecondary
-                        : AppTheme.lightTextSecondary,
-              ),
+              style: TextStyle(fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -177,330 +165,271 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // Gradient background
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors:
-                    isDark
-                        ? [
-                          AppTheme.darkBackground,
-                          AppTheme.darkBackground.withOpacity(0.8),
-                        ]
-                        : [
-                          AppTheme.lightPrimaryStart.withOpacity(0.1),
-                          AppTheme.lightPrimaryEnd.withOpacity(0.05),
-                        ],
-              ),
-            ),
-          ),
+      body: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Scrollable content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
 
-          // Content
-          SafeArea(
-            child: Column(
-              children: [
-                // Top bar with theme toggle
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 16.0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [const ThemeToggleButton()],
-                  ),
-                ),
-
-                // Scrollable content
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 20),
-
-                          // Header with icon
-                          Center(
-                            child: Column(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: AppTheme.primaryGradient(isDark),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: (isDark
-                                                ? AppTheme.darkPrimaryStart
-                                                : AppTheme.lightPrimaryStart)
-                                            .withOpacity(0.3),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.lock_open,
-                                    size: 40,
-                                    color: Colors.white,
-                                  ),
+                        // Header with icon
+                        Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: AppTheme.primaryGradient(isDark),
                                 ),
-                                const SizedBox(height: 24),
-                                ShaderMask(
-                                  shaderCallback:
-                                      (bounds) => AppTheme.primaryGradient(
-                                        isDark,
-                                      ).createShader(bounds),
-                                  child: Text(
-                                    'Create New Password',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.headlineSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      letterSpacing: 0.8,
-                                    ),
-                                  ),
+                                child: const Icon(
+                                  Icons.lock_open_outlined,
+                                  size: 40,
+                                  color: Colors.white,
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Your identity has been verified. Please create a new secure password for your account.',
+                              ),
+                              const SizedBox(height: 24),
+                              ShaderMask(
+                                shaderCallback:
+                                    (bounds) => AppTheme.primaryGradient(
+                                      isDark,
+                                    ).createShader(bounds),
+                                child: Text(
+                                  'Create New Password',
                                   style: Theme.of(
                                     context,
-                                  ).textTheme.bodyMedium?.copyWith(
+                                  ).textTheme.headlineSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Your identity has been verified. Please create a new secure password for your account.',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isDark
+                                          ? Color(0xFF222f43).withOpacity(0.3)
+                                          : Color(0xFFe5e5e5).withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(28),
+                                  border: Border.all(
                                     color:
                                         isDark
-                                            ? AppTheme.darkTextSecondary
-                                            : AppTheme.lightTextSecondary,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: (isDark
-                                            ? AppTheme.darkPrimaryStart
-                                            : AppTheme.lightPrimaryStart)
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: (isDark
-                                              ? AppTheme.darkPrimaryStart
-                                              : AppTheme.lightPrimaryStart)
-                                          .withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    widget.email,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      color:
-                                          isDark
-                                              ? AppTheme.darkPrimaryStart
-                                              : AppTheme.lightPrimaryStart,
-                                    ),
+                                            ? Color(0xFF222f43)
+                                            : Color(0xFFe5e5e5),
+                                    width: 1,
                                   ),
                                 ),
-                              ],
-                            ),
+                                child: Text(
+                                  widget.email,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
 
-                          const SizedBox(height: 40),
+                        const SizedBox(height: 40),
 
-                          // Form in gradient container
-                          GradientContainer(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // New Password
-                                CustomTextField(
-                                  controller: _passwordController,
-                                  labelText: 'New Password',
-                                  hintText: 'Enter your new password',
-                                  obscureText: _obscurePassword,
-                                  prefixIcon: const Icon(Icons.lock),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility
-                                          : Icons.visibility_off,
-                                    ),
-                                    onPressed: _togglePasswordVisibility,
-                                  ),
-                                  enabled: !_isLoading,
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter a new password';
-                                    }
-                                    if (value.length < 6) {
-                                      return 'Password must be at least 6 characters';
-                                    }
-                                    return null;
-                                  },
+                        // Form fields
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // New Password
+                            CustomTextField(
+                              controller: _passwordController,
+                              labelText: 'New Password',
+                              hintText: 'Enter your new password',
+                              obscureText: _obscurePassword,
+                              prefixIcon: const Icon(Icons.lock_outlined),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  color:
+                                      isDark
+                                          ? AppTheme.darkTextSecondary
+                                          : AppTheme.lightTextSecondary,
                                 ),
+                                onPressed: _togglePasswordVisibility,
+                              ),
+                              enabled: !_isLoading,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter a new password';
+                                }
+                                if (value.length < 6) {
+                                  return 'Password must be at least 6 characters';
+                                }
+                                return null;
+                              },
+                            ),
 
-                                // Confirm Password
-                                CustomTextField(
-                                  controller: _confirmPasswordController,
-                                  labelText: 'Confirm New Password',
-                                  hintText: 'Confirm your new password',
-                                  obscureText: _obscureConfirmPassword,
-                                  prefixIcon: const Icon(Icons.lock_outline),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscureConfirmPassword
-                                          ? Icons.visibility
-                                          : Icons.visibility_off,
-                                    ),
-                                    onPressed: _toggleConfirmPasswordVisibility,
-                                  ),
-                                  enabled: !_isLoading,
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please confirm your new password';
-                                    }
-                                    if (value != _passwordController.text) {
-                                      return 'Passwords do not match';
-                                    }
-                                    return null;
-                                  },
+                            // Confirm Password
+                            CustomTextField(
+                              controller: _confirmPasswordController,
+                              labelText: 'Confirm New Password',
+                              hintText: 'Confirm your new password',
+                              obscureText: _obscureConfirmPassword,
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  color:
+                                      isDark
+                                          ? AppTheme.darkTextSecondary
+                                          : AppTheme.lightTextSecondary,
                                 ),
+                                onPressed: _toggleConfirmPasswordVisibility,
+                              ),
+                              enabled: !_isLoading,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please confirm your new password';
+                                }
+                                if (value != _passwordController.text) {
+                                  return 'Passwords do not match';
+                                }
+                                return null;
+                              },
+                            ),
 
-                                const SizedBox(height: 16),
+                            const SizedBox(height: 16),
 
-                                // Password requirements
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: (isDark
-                                            ? AppTheme.darkPrimaryStart
-                                            : AppTheme.lightPrimaryStart)
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: (isDark
-                                              ? AppTheme.darkPrimaryStart
-                                              : AppTheme.lightPrimaryStart)
-                                          .withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                            // Password requirements
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color:
+                                    isDark
+                                        ? Color(0xFF222f43).withOpacity(0.3)
+                                        : Color(0xFFe5e5e5).withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color:
+                                      isDark
+                                          ? Color(0xFF222f43)
+                                          : Color(0xFFe5e5e5),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
                                     children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.security,
-                                            color:
-                                                isDark
-                                                    ? AppTheme.darkPrimaryStart
-                                                    : AppTheme
-                                                        .lightPrimaryStart,
-                                            size: 18,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Password Requirements',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              color:
-                                                  isDark
-                                                      ? AppTheme
-                                                          .darkPrimaryStart
-                                                      : AppTheme
-                                                          .lightPrimaryStart,
-                                            ),
-                                          ),
-                                        ],
+                                      Icon(
+                                        Icons.security_outlined,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                        size: 18,
                                       ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(width: 8),
                                       Text(
-                                        '• At least 6 characters long\n• Use a combination of letters and numbers\n• Avoid using personal information',
+                                        'Password Requirements',
                                         style: TextStyle(
-                                          fontSize: 12,
-                                          color:
-                                              isDark
-                                                  ? AppTheme.darkTextSecondary
-                                                  : AppTheme.lightTextSecondary,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ],
                                   ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '• At least 6 characters long\n• Use a combination of letters and numbers\n• Avoid using personal information',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Error message
+                        if (_errorMessage != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            margin: const EdgeInsets.only(bottom: 24),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.red.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: TextStyle(
+                                      color: Colors.red.shade300,
+                                      fontSize: 14,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
 
-                          const SizedBox(height: 24),
+                        // Reset password button
+                        GradientButton(
+                          text: 'Reset Password',
+                          onPressed: _resetPassword,
+                          isLoading: _isLoading,
+                        ),
 
-                          // Error message
-                          if (_errorMessage != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              margin: const EdgeInsets.only(bottom: 24),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.red.withOpacity(0.3),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.error_outline,
-                                    color: Colors.red,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      _errorMessage!,
-                                      style: const TextStyle(
-                                        color: Colors.red,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                          // Reset password button
-                          GradientButton(
-                            text: 'Reset Password',
-                            onPressed: _resetPassword,
-                            isLoading: _isLoading,
-                          ),
-
-                          const SizedBox(height: 24),
-                        ],
-                      ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

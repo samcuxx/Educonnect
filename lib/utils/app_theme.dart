@@ -1,56 +1,142 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Primary gradient colors
-  static const Color lightPrimaryStart = Color(0xFF3366FF);
-  static const Color lightPrimaryEnd = Color(0xFF00CCFF);
-  
-  static const Color darkPrimaryStart = Color(0xFF3700B3);
-  static const Color darkPrimaryEnd = Color(0xFF6200EE);
-  
+  // Primary gradient colors for buttons and highlights
+  static const Color lightPrimaryStart = Color(0xFF0bd1d1); // Cyan/Teal
+  static const Color lightPrimaryEnd = Color(0xFF0ea5ea); // Blue
+
+  static const Color darkPrimaryStart = Color(
+    0xFF0bd1d1,
+  ); // Same colors for dark mode
+  static const Color darkPrimaryEnd = Color(
+    0xFF0ea5ea,
+  ); // for consistent branding
+
   // Secondary gradient colors
-  static const Color lightSecondaryStart = Color.fromARGB(255, 44, 80, 65);  // Deep blue-gray
-  static const Color lightSecondaryEnd = Color.fromARGB(255, 106, 194, 154);    // Darker blue-gray
-  
-  static const Color darkSecondaryStart = Color.fromARGB(255, 44, 80, 65);   // Deep blue-gray
-  static const Color darkSecondaryEnd = Color.fromARGB(255, 106, 194, 154);     // Darker blue-gray
-  
+  static const Color lightSecondaryStart = Color(
+    0xFF0bd1d1,
+  ); // Using same gradient
+  static const Color lightSecondaryEnd = Color(
+    0xFF0ea5ea,
+  ); // for secondary elements
+
+  static const Color darkSecondaryStart = Color(
+    0xFF0bd1d1,
+  ); // Same in dark mode
+  static const Color darkSecondaryEnd = Color(0xFF0ea5ea); // for consistency
+
   // Background colors
-  static const Color lightBackground = Color(0xFFF7F9FC);
-  static const Color darkBackground = Color(0xFF121212);
-  
-  // Surface colors
-  static const Color lightSurface = Colors.white;
-  static const Color darkSurface = Color(0xFF1E1E1E);
-  
+  static const Color lightBackground = Colors.white; // White
+  static const Color darkBackground = Color(0xFF0f172a); // Dark blue
+
+  // Surface/Foreground colors
+  static const Color lightSurface = Color(
+    0x4DE9E9E9,
+  ); // Light gray with transparency
+  static const Color darkSurface = Color(0xFF091c31); // Very dark blue
+
   // Text colors
-  static const Color lightTextPrimary = Color(0xFF2A2D3E);
-  static const Color darkTextPrimary = Color(0xFFF5F5F5);
-  
-  static const Color lightTextSecondary = Color(0xFF6C7693);
-  static const Color darkTextSecondary = Color(0xFFB0B0B0);
-  
+  static const Color lightTextPrimary = Color(0xFF222222); // Dark gray
+  static const Color darkTextPrimary = Color(0xFF94a9c9); // Light blue-gray
+
+  static const Color lightTextSecondary = Color(
+    0xFF222222,
+  ); // Same as primary for now
+  static const Color darkTextSecondary = Color(
+    0xFF94a9c9,
+  ); // Same as primary for now
+
+  // Border colors
+  static const Color lightBorder = Color(0xFFe5e5e5); // Light gray
+  static const Color darkBorder = Color(0xFF222f43); // Dark blue-gray
+
   // Create linear gradients for various UI elements
   static LinearGradient primaryGradient(bool isDark) {
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: isDark
-          ? [darkPrimaryStart, darkPrimaryEnd]
-          : [lightPrimaryStart, lightPrimaryEnd],
+      colors: [lightPrimaryStart, lightPrimaryEnd], // Same for both modes
     );
   }
-  
+
   static LinearGradient secondaryGradient(bool isDark) {
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: isDark
-          ? [darkSecondaryStart, darkSecondaryEnd]
-          : [lightSecondaryStart, lightSecondaryEnd],
+      colors: [lightSecondaryStart, lightSecondaryEnd], // Same for both modes
     );
   }
-  
+
+  // Base text theme with Inter font
+  static TextTheme _createBaseTextTheme(
+    Color primaryColor,
+    Color secondaryColor,
+  ) {
+    return TextTheme(
+      displayLarge: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w700,
+      ),
+      displayMedium: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w700,
+      ),
+      displaySmall: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineLarge: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineMedium: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineSmall: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w700,
+      ),
+      titleLarge: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w600,
+      ),
+      titleMedium: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w600,
+      ),
+      titleSmall: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w600,
+      ),
+      bodyLarge: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w400,
+      ),
+      bodyMedium: GoogleFonts.inter(
+        color: secondaryColor,
+        fontWeight: FontWeight.w400,
+      ),
+      bodySmall: GoogleFonts.inter(
+        color: secondaryColor,
+        fontWeight: FontWeight.w400,
+      ),
+      labelLarge: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w500,
+      ),
+      labelMedium: GoogleFonts.inter(
+        color: primaryColor,
+        fontWeight: FontWeight.w500,
+      ),
+      labelSmall: GoogleFonts.inter(
+        color: secondaryColor,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+
   // Light theme
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
@@ -62,41 +148,56 @@ class AppTheme {
       background: lightBackground,
       onBackground: lightTextPrimary,
       onSurface: lightTextPrimary,
+      outline: lightBorder,
     ),
     scaffoldBackgroundColor: lightBackground,
+    fontFamily: GoogleFonts.inter().fontFamily,
     appBarTheme: AppBarTheme(
-      backgroundColor: lightSurface,
+      backgroundColor: lightBackground,
       foregroundColor: lightTextPrimary,
       elevation: 0,
+      titleTextStyle: GoogleFonts.inter(
+        color: lightTextPrimary,
+        fontWeight: FontWeight.w600,
+        fontSize: 18,
+      ),
     ),
-    textTheme: TextTheme(
-      headlineLarge: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.bold),
-      headlineMedium: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.bold),
-      headlineSmall: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.bold),
-      titleLarge: TextStyle(color: lightTextPrimary),
-      titleMedium: TextStyle(color: lightTextPrimary),
-      bodyLarge: TextStyle(color: lightTextPrimary),
-      bodyMedium: TextStyle(color: lightTextSecondary),
-    ),
+    dividerColor: lightBorder,
+    textTheme: _createBaseTextTheme(lightTextPrimary, lightTextSecondary),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         foregroundColor: Colors.white,
         backgroundColor: lightPrimaryStart,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: lightPrimaryStart,
+        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: lightPrimaryStart,
+        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        side: BorderSide(color: lightPrimaryStart),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
+      hintStyle: GoogleFonts.inter(color: lightTextSecondary.withOpacity(0.7)),
+      labelStyle: GoogleFonts.inter(color: lightTextSecondary),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: lightBorder),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: lightBorder),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -108,7 +209,7 @@ class AppTheme {
       ),
     ),
   );
-  
+
   // Dark theme
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
@@ -120,41 +221,56 @@ class AppTheme {
       background: darkBackground,
       onBackground: darkTextPrimary,
       onSurface: darkTextPrimary,
+      outline: darkBorder,
     ),
     scaffoldBackgroundColor: darkBackground,
+    fontFamily: GoogleFonts.inter().fontFamily,
     appBarTheme: AppBarTheme(
-      backgroundColor: darkSurface,
+      backgroundColor: darkBackground,
       foregroundColor: darkTextPrimary,
       elevation: 0,
+      titleTextStyle: GoogleFonts.inter(
+        color: darkTextPrimary,
+        fontWeight: FontWeight.w600,
+        fontSize: 18,
+      ),
     ),
-    textTheme: TextTheme(
-      headlineLarge: TextStyle(color: darkTextPrimary, fontWeight: FontWeight.bold),
-      headlineMedium: TextStyle(color: darkTextPrimary, fontWeight: FontWeight.bold),
-      headlineSmall: TextStyle(color: darkTextPrimary, fontWeight: FontWeight.bold),
-      titleLarge: TextStyle(color: darkTextPrimary),
-      titleMedium: TextStyle(color: darkTextPrimary),
-      bodyLarge: TextStyle(color: darkTextPrimary),
-      bodyMedium: TextStyle(color: darkTextSecondary),
-    ),
+    dividerColor: darkBorder,
+    textTheme: _createBaseTextTheme(darkTextPrimary, darkTextSecondary),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         foregroundColor: Colors.white,
         backgroundColor: darkPrimaryStart,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: darkPrimaryStart,
+        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: darkPrimaryStart,
+        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        side: BorderSide(color: darkPrimaryStart),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Color(0xFF2A2D3E),
+      fillColor: darkSurface,
+      hintStyle: GoogleFonts.inter(color: darkTextSecondary.withOpacity(0.7)),
+      labelStyle: GoogleFonts.inter(color: darkTextSecondary),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade800),
+        borderSide: BorderSide(color: darkBorder),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade800),
+        borderSide: BorderSide(color: darkBorder),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -166,4 +282,4 @@ class AppTheme {
       ),
     ),
   );
-} 
+}

@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/gradient_button.dart';
-import '../../widgets/gradient_container.dart';
-import '../../widgets/theme_toggle_button.dart';
 import '../../widgets/otp_verification_dialog.dart';
 import '../../utils/app_theme.dart';
 import 'reset_password_screen.dart';
@@ -158,305 +156,243 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // Gradient background
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors:
-                    isDark
-                        ? [
-                          AppTheme.darkBackground,
-                          AppTheme.darkBackground.withOpacity(0.8),
-                        ]
-                        : [
-                          AppTheme.lightPrimaryStart.withOpacity(0.1),
-                          AppTheme.lightPrimaryEnd.withOpacity(0.05),
-                        ],
+      body: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Top bar with back button
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 16.0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: _navigateBack,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color:
+                              isDark
+                                  ? AppTheme.darkSurface
+                                  : AppTheme.lightSurface,
+                        ),
+                        child: Icon(
+                          Icons.arrow_back,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
 
-          // Content
-          SafeArea(
-            child: Column(
-              children: [
-                // Top bar with back button and theme toggle
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 16.0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: _navigateBack,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color:
-                                isDark
-                                    ? AppTheme.darkSurface
-                                    : AppTheme.lightSurface,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+              // Scrollable content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+
+                        // Header with icon
+                        Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: AppTheme.primaryGradient(isDark),
+                                ),
+                                child: const Icon(
+                                  Icons.lock_reset_outlined,
+                                  size: 40,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              ShaderMask(
+                                shaderCallback:
+                                    (bounds) => AppTheme.primaryGradient(
+                                      isDark,
+                                    ).createShader(bounds),
+                                child: Text(
+                                  'Reset Password',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Enter your registered email address and we\'ll send a verification code to your phone number',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                                textAlign: TextAlign.center,
                               ),
                             ],
                           ),
-                          child: Icon(
-                            Icons.arrow_back,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
                         ),
-                      ),
-                      const ThemeToggleButton(),
-                    ],
-                  ),
-                ),
 
-                // Scrollable content
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 20),
+                        const SizedBox(height: 40),
 
-                          // Header with icon
-                          Center(
-                            child: Column(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: AppTheme.primaryGradient(isDark),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: (isDark
-                                                ? AppTheme.darkPrimaryStart
-                                                : AppTheme.lightPrimaryStart)
-                                            .withOpacity(0.3),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.lock_reset,
-                                    size: 40,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                ShaderMask(
-                                  shaderCallback:
-                                      (bounds) => AppTheme.primaryGradient(
-                                        isDark,
-                                      ).createShader(bounds),
-                                  child: Text(
-                                    'Reset Password',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.headlineSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      letterSpacing: 0.8,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Enter your registered email address and we\'ll send a verification code to your phone number',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.bodyMedium?.copyWith(
-                                    color:
-                                        isDark
-                                            ? AppTheme.darkTextSecondary
-                                            : AppTheme.lightTextSecondary,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
+                        // Form
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Email field
+                            CustomTextField(
+                              controller: _emailController,
+                              labelText: 'Email Address',
+                              hintText: 'Enter your registered email',
+                              keyboardType: TextInputType.emailAddress,
+                              prefixIcon: const Icon(Icons.email_outlined),
+                              enabled: !_isLoading && !_isCheckingUser,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter your email address';
+                                }
+                                if (!RegExp(
+                                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                ).hasMatch(value)) {
+                                  return 'Please enter a valid email address';
+                                }
+                                return null;
+                              },
                             ),
-                          ),
 
-                          const SizedBox(height: 40),
+                            const SizedBox(height: 16),
 
-                          // Form in gradient container
-                          GradientContainer(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Email field
-                                CustomTextField(
-                                  controller: _emailController,
-                                  labelText: 'Email Address',
-                                  hintText: 'Enter your registered email',
-                                  keyboardType: TextInputType.emailAddress,
-                                  prefixIcon: const Icon(Icons.email_outlined),
-                                  enabled: !_isLoading && !_isCheckingUser,
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter your email address';
-                                    }
-                                    if (!RegExp(
-                                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                                    ).hasMatch(value)) {
-                                      return 'Please enter a valid email address';
-                                    }
-                                    return null;
-                                  },
-                                ),
-
-                                const SizedBox(height: 16),
-
-                                // Info text
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: (isDark
-                                            ? AppTheme.darkPrimaryStart
-                                            : AppTheme.lightPrimaryStart)
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: (isDark
-                                              ? AppTheme.darkPrimaryStart
-                                              : AppTheme.lightPrimaryStart)
-                                          .withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.info_outline,
-                                        color:
-                                            isDark
-                                                ? AppTheme.darkPrimaryStart
-                                                : AppTheme.lightPrimaryStart,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          'We\'ll verify your identity using the phone number associated with your account.',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color:
-                                                isDark
-                                                    ? AppTheme.darkTextSecondary
-                                                    : AppTheme
-                                                        .lightTextSecondary,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 24),
-
-                          // Error message
-                          if (_errorMessage != null)
+                            // Info text
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              margin: const EdgeInsets.only(bottom: 24),
+                              padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
+                                color:
+                                    isDark
+                                        ? Color(0xFF222f43).withOpacity(0.3)
+                                        : Color(0xFFe5e5e5).withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.red.withOpacity(0.3),
+                                  color:
+                                      isDark
+                                          ? Color(0xFF222f43)
+                                          : Color(0xFFe5e5e5),
+                                  width: 1,
                                 ),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(
-                                    Icons.error_outline,
-                                    color: Colors.red,
+                                  Icon(
+                                    Icons.info_outline,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                     size: 20,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      _errorMessage!,
-                                      style: const TextStyle(
-                                        color: Colors.red,
-                                        fontSize: 14,
-                                      ),
+                                      'We\'ll verify your identity using the phone number associated with your account.',
+                                      style: TextStyle(fontSize: 13),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
+                          ],
+                        ),
 
-                          // Send verification button
-                          GradientButton(
-                            text: 'Send Verification Code',
-                            onPressed: _checkUserExists,
-                            isLoading: _isLoading || _isCheckingUser,
+                        const SizedBox(height: 24),
+
+                        // Error message
+                        if (_errorMessage != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            margin: const EdgeInsets.only(bottom: 24),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.red.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: TextStyle(
+                                      color: Colors.red.shade300,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
 
-                          const SizedBox(height: 24),
+                        // Send verification button
+                        GradientButton(
+                          text: 'Send Verification Code',
+                          onPressed: _checkUserExists,
+                          isLoading: _isLoading || _isCheckingUser,
+                        ),
 
-                          // Back to login link
-                          Center(
-                            child: TextButton(
-                              onPressed: _navigateBack,
-                              child: RichText(
-                                text: TextSpan(
-                                  text: 'Remember your password? ',
-                                  style: TextStyle(
-                                    color:
-                                        isDark
-                                            ? AppTheme.darkTextSecondary
-                                            : AppTheme.lightTextSecondary,
-                                    fontSize: 14,
-                                  ),
-                                  children: [
-                                    TextSpan(
-                                      text: 'Sign In',
-                                      style: TextStyle(
-                                        color:
-                                            isDark
-                                                ? AppTheme.darkPrimaryStart
-                                                : AppTheme.lightPrimaryStart,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
+                        const SizedBox(height: 24),
+
+                        // Back to login link
+                        Center(
+                          child: TextButton(
+                            onPressed: _navigateBack,
+                            child: RichText(
+                              text: TextSpan(
+                                text: 'Remember your password? ',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
                                 ),
+                                children: [
+                                  TextSpan(
+                                    text: 'Sign In',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
