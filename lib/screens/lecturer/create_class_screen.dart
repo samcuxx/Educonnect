@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../providers/class_provider.dart';
 import '../../widgets/gradient_button.dart';
-import '../../widgets/gradient_container.dart';
 import '../../utils/app_theme.dart';
 
 class CreateClassScreen extends StatefulWidget {
@@ -118,20 +118,23 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
       builder:
           (context) => AlertDialog(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(28),
             ),
             backgroundColor:
                 isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
             title: Column(
               children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 50),
+                Icon(Icons.check_circle_outline, color: Colors.green, size: 50),
                 const SizedBox(height: 16),
                 Text(
                   'Class Created Successfully!',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black,
+                    color:
+                        isDark
+                            ? AppTheme.darkTextPrimary
+                            : AppTheme.lightTextPrimary,
                   ),
                 ),
               ],
@@ -142,7 +145,7 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
                 Text(
                   'Share this code with your students:',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     color:
                         isDark
                             ? AppTheme.darkTextSecondary
@@ -157,38 +160,23 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
                   ),
                   decoration: BoxDecoration(
                     gradient: AppTheme.secondaryGradient(isDark),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isDark
-                                ? AppTheme.darkSecondaryStart
-                                : AppTheme.lightSecondaryStart)
-                            .withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(28),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        classCode,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    classCode,
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.5,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
                 Text(
                   'Students will need this code to join your class.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 12,
                     color:
                         isDark
@@ -203,11 +191,12 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
                 onPressed: () => Navigator.pop(context),
                 child: Text(
                   'Close',
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     color:
                         isDark
                             ? AppTheme.darkSecondaryStart
                             : AppTheme.lightSecondaryStart,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -219,7 +208,7 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
                           : AppTheme.lightSecondaryStart,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(28),
                   ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -240,10 +229,13 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
                 },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.copy, size: 16),
-                    SizedBox(width: 8),
-                    Text('Copy Code'),
+                  children: [
+                    const Icon(Icons.copy_outlined, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Copy Code',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                    ),
                   ],
                 ),
               ),
@@ -259,407 +251,435 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // Gradient background
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors:
-                    isDark
-                        ? [
-                          AppTheme.darkBackground,
-                          AppTheme.darkBackground.withOpacity(0.8),
-                        ]
-                        : [
-                          AppTheme.lightSecondaryStart.withOpacity(0.05),
-                          AppTheme.lightSecondaryEnd.withOpacity(0.02),
-                        ],
-              ),
-            ),
-          ),
-
-          // Content
-          SafeArea(
-            child: Column(
-              children: [
-                // Top bar with back button
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 16.0,
+      appBar: AppBar(
+        title: Text(
+          'Create Class',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18),
+        ),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_outlined),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Icon with gradient background
+              Align(
+                alignment: Alignment.center,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.secondaryGradient(isDark),
+                    shape: BoxShape.circle,
                   ),
-                  child: Row(
+                  child: const Icon(
+                    Icons.class_outlined,
+                    size: 40,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              Center(
+                child: Text(
+                  'Create a Class',
+                  style: GoogleFonts.inter(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color:
+                        isDark
+                            ? AppTheme.darkTextPrimary
+                            : AppTheme.lightTextPrimary,
+                  ),
+                ),
+              ),
+
+              Center(
+                child: Text(
+                  'Set up your new class',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    color:
+                        isDark
+                            ? AppTheme.darkTextSecondary
+                            : AppTheme.lightTextSecondary,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Form fields
+              Form(
+                key: _formKey,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color:
+                        isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color:
+                          isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color:
-                                isDark
-                                    ? AppTheme.darkSurface
-                                    : AppTheme.lightSurface,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.arrow_back,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
+                      Text(
+                        'Class Information',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color:
+                              isDark
+                                  ? AppTheme.darkTextPrimary
+                                  : AppTheme.lightTextPrimary,
                         ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Course Name
+                      TextFormField(
+                        controller: _courseNameController,
+                        decoration: InputDecoration(
+                          labelText: 'Course Name',
+                          hintText: 'e.g., Linear Algebra II',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkSecondaryStart
+                                      : AppTheme.lightSecondaryStart,
+                              width: 2,
+                            ),
+                          ),
+                          prefixIcon: const Icon(Icons.book_outlined),
+                          filled: true,
+                          fillColor: isDark ? Colors.black12 : Colors.white,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a course name';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Course Code
+                      TextFormField(
+                        controller: _courseCodeController,
+                        decoration: InputDecoration(
+                          labelText: 'Course Code',
+                          hintText: 'e.g., MATH241',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkSecondaryStart
+                                      : AppTheme.lightSecondaryStart,
+                              width: 2,
+                            ),
+                          ),
+                          prefixIcon: const Icon(Icons.code_outlined),
+                          filled: true,
+                          fillColor: isDark ? Colors.black12 : Colors.white,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a course code';
+                          }
+                          return null;
+                        },
+                        textCapitalization: TextCapitalization.characters,
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Level Selection
+                      DropdownButtonFormField<String>(
+                        value: _selectedLevel,
+                        decoration: InputDecoration(
+                          labelText: 'Level',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(28),
+                            borderSide: BorderSide(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkSecondaryStart
+                                      : AppTheme.lightSecondaryStart,
+                              width: 2,
+                            ),
+                          ),
+                          prefixIcon: const Icon(Icons.school_outlined),
+                          filled: true,
+                          fillColor: isDark ? Colors.black12 : Colors.white,
+                        ),
+                        dropdownColor:
+                            isDark ? AppTheme.darkSurface : Colors.white,
+                        items:
+                            _levelOptions.map((String level) {
+                              return DropdownMenuItem<String>(
+                                value: level,
+                                child: Text(level),
+                              );
+                            }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              _selectedLevel = newValue;
+                            });
+                          }
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      Text(
+                        'Class Duration',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color:
+                              isDark
+                                  ? AppTheme.darkTextPrimary
+                                  : AppTheme.lightTextPrimary,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Date Selection
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _selectDate(context, true),
+                              child: AbsorbPointer(
+                                child: TextFormField(
+                                  decoration: InputDecoration(
+                                    labelText: 'Start Date',
+                                    prefixIcon: const Icon(
+                                      Icons.calendar_today_outlined,
+                                    ),
+                                    suffixIcon: const Icon(
+                                      Icons.arrow_drop_down,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(28),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(28),
+                                      borderSide: BorderSide(
+                                        color:
+                                            isDark
+                                                ? AppTheme.darkBorder
+                                                : AppTheme.lightBorder,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(28),
+                                      borderSide: BorderSide(
+                                        color:
+                                            isDark
+                                                ? AppTheme.darkSecondaryStart
+                                                : AppTheme.lightSecondaryStart,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    filled: true,
+                                    fillColor:
+                                        isDark ? Colors.black12 : Colors.white,
+                                  ),
+                                  controller: TextEditingController(
+                                    text: DateFormat(
+                                      'MMMM d, yyyy',
+                                    ).format(_startDate),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 16),
+
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _selectDate(context, false),
+                              child: AbsorbPointer(
+                                child: TextFormField(
+                                  decoration: InputDecoration(
+                                    labelText: 'End Date',
+                                    prefixIcon: const Icon(
+                                      Icons.calendar_today_outlined,
+                                    ),
+                                    suffixIcon: const Icon(
+                                      Icons.arrow_drop_down,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(28),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(28),
+                                      borderSide: BorderSide(
+                                        color:
+                                            isDark
+                                                ? AppTheme.darkBorder
+                                                : AppTheme.lightBorder,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(28),
+                                      borderSide: BorderSide(
+                                        color:
+                                            isDark
+                                                ? AppTheme.darkSecondaryStart
+                                                : AppTheme.lightSecondaryStart,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    filled: true,
+                                    fillColor:
+                                        isDark ? Colors.black12 : Colors.white,
+                                  ),
+                                  controller: TextEditingController(
+                                    text: DateFormat(
+                                      'MMMM d, yyyy',
+                                    ).format(_endDate),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
+              ),
 
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      children: [
-                        // Icon with gradient background
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            gradient: AppTheme.secondaryGradient(isDark),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: (isDark
-                                        ? AppTheme.darkSecondaryStart
-                                        : AppTheme.lightSecondaryStart)
-                                    .withOpacity(0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.class_,
-                            size: 48,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
-                        // Title with gradient
-                        ShaderMask(
-                          shaderCallback:
-                              (bounds) => AppTheme.secondaryGradient(
-                                isDark,
-                              ).createShader(bounds),
-                          child: Text(
-                            'Create a Class',
-                            style: Theme.of(
-                              context,
-                            ).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        Text(
-                          'Set up your new class',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color:
-                                isDark
-                                    ? AppTheme.darkTextSecondary
-                                    : AppTheme.lightTextSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-
-                        // Form in gradient container
-                        GradientContainer(
-                          useSecondaryGradient: true,
-                          padding: const EdgeInsets.all(24),
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Course Name
-                                TextFormField(
-                                  controller: _courseNameController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Course Name',
-                                    hintText: 'e.g., Linear Algebra II',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    prefixIcon: const Icon(Icons.book),
-                                    filled: true,
-                                    fillColor:
-                                        isDark
-                                            ? AppTheme.darkSurface
-                                            : AppTheme.lightSurface,
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter a course name';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Course Code
-                                TextFormField(
-                                  controller: _courseCodeController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Course Code',
-                                    hintText: 'e.g., MATH241',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    prefixIcon: const Icon(Icons.code),
-                                    filled: true,
-                                    fillColor:
-                                        isDark
-                                            ? AppTheme.darkSurface
-                                            : AppTheme.lightSurface,
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter a course code';
-                                    }
-                                    return null;
-                                  },
-                                  textCapitalization:
-                                      TextCapitalization.characters,
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Level Selection
-                                DropdownButtonFormField<String>(
-                                  value: _selectedLevel,
-                                  decoration: InputDecoration(
-                                    labelText: 'Level',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    prefixIcon: const Icon(Icons.school),
-                                    filled: true,
-                                    fillColor:
-                                        isDark
-                                            ? AppTheme.darkSurface
-                                            : AppTheme.lightSurface,
-                                  ),
-                                  items:
-                                      _levelOptions.map((String level) {
-                                        return DropdownMenuItem<String>(
-                                          value: level,
-                                          child: Text(level),
-                                        );
-                                      }).toList(),
-                                  onChanged: (String? newValue) {
-                                    if (newValue != null) {
-                                      setState(() {
-                                        _selectedLevel = newValue;
-                                      });
-                                    }
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Date Selection
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap: () => _selectDate(context, true),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(16),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                isDark
-                                                    ? AppTheme.darkSurface
-                                                    : AppTheme.lightSurface,
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            border: Border.all(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).dividerColor,
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Start Date',
-                                                style: TextStyle(
-                                                  color:
-                                                      isDark
-                                                          ? AppTheme
-                                                              .darkTextSecondary
-                                                          : AppTheme
-                                                              .lightTextSecondary,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                DateFormat(
-                                                  'MMM d, yyyy',
-                                                ).format(_startDate),
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap:
-                                            () => _selectDate(context, false),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(16),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                isDark
-                                                    ? AppTheme.darkSurface
-                                                    : AppTheme.lightSurface,
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            border: Border.all(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).dividerColor,
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'End Date',
-                                                style: TextStyle(
-                                                  color:
-                                                      isDark
-                                                          ? AppTheme
-                                                              .darkTextSecondary
-                                                          : AppTheme
-                                                              .lightTextSecondary,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                DateFormat(
-                                                  'MMM d, yyyy',
-                                                ).format(_endDate),
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 24),
-
-                                // Create button
-                                GradientButton(
-                                  text: 'Create Class',
-                                  onPressed: isLoading ? () {} : _submitForm,
-                                  isLoading: isLoading,
-                                  useSecondaryGradient: true,
-                                  width: double.infinity,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Help text
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color:
-                                isDark
-                                    ? AppTheme.darkSurface
-                                    : AppTheme.lightSurface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color:
-                                  isDark
-                                      ? AppTheme.darkSecondaryStart.withOpacity(
-                                        0.2,
-                                      )
-                                      : AppTheme.lightSecondaryStart
-                                          .withOpacity(0.2),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color:
-                                      isDark
-                                          ? AppTheme.darkSecondaryStart
-                                              .withOpacity(0.1)
-                                          : AppTheme.lightSecondaryStart
-                                              .withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.help_outline,
-                                  size: 20,
-                                  color:
-                                      isDark
-                                          ? AppTheme.darkSecondaryStart
-                                          : AppTheme.lightSecondaryStart,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Students will be able to join using the class code that will be generated.',
-                                  style: TextStyle(
-                                    color:
-                                        isDark
-                                            ? AppTheme.darkTextSecondary
-                                            : AppTheme.lightTextSecondary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+              // Help text
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                    width: 1,
                   ),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color:
+                            isDark
+                                ? AppTheme.darkSecondaryStart.withOpacity(0.1)
+                                : AppTheme.lightSecondaryStart.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color:
+                              isDark
+                                  ? AppTheme.darkSecondaryStart.withOpacity(0.3)
+                                  : AppTheme.lightSecondaryStart.withOpacity(
+                                    0.3,
+                                  ),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.info_outline,
+                        size: 20,
+                        color:
+                            isDark
+                                ? AppTheme.darkSecondaryStart
+                                : AppTheme.lightSecondaryStart,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Students will be able to join using the class code that will be generated.',
+                        style: GoogleFonts.inter(
+                          color:
+                              isDark
+                                  ? AppTheme.darkTextSecondary
+                                  : AppTheme.lightTextSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Create button
+              SizedBox(
+                width: double.infinity,
+                child: GradientButton(
+                  text: 'Create Class',
+                  onPressed: isLoading ? () {} : _submitForm,
+                  isLoading: isLoading,
+                  useSecondaryGradient: true,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

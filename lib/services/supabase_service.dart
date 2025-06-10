@@ -1387,6 +1387,59 @@ END;
     }
   }
 
+  // Update an existing class (for lecturers)
+  Future<ClassModel> updateClass({
+    required String classId,
+    required String name,
+    required String courseCode,
+    required String level,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+
+      // First, verify that the user is the owner of the class
+      final classData = await _client
+          .from('classes')
+          .select()
+          .eq('id', classId)
+          .eq('created_by', currentUser.id)
+          .limit(1);
+
+      if (classData == null || (classData as List).isEmpty) {
+        throw Exception(
+          'Class not found or you do not have permission to edit it',
+        );
+      }
+
+      // Prepare the updated data
+      final updates = {
+        'name': name,
+        'course_code': courseCode,
+        'level': level,
+        'start_date': startDate.toIso8601String(),
+        'end_date': endDate.toIso8601String(),
+      };
+
+      // Update the class in the database
+      final updatedClass =
+          await _client
+              .from('classes')
+              .update(updates)
+              .eq('id', classId)
+              .select()
+              .single();
+
+      return ClassModel.fromJson(updatedClass);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Create a new assignment
   Future<AssignmentModel> createAssignment({
     required String classId,

@@ -31,9 +31,7 @@ class AppTheme {
   static const Color darkBackground = Color(0xFF0f172a); // Dark blue
 
   // Surface/Foreground colors
-  static const Color lightSurface = Color(
-    0x4DE9E9E9,
-  ); // Light gray with transparency
+  static const Color lightSurface = Colors.white; // Solid white for light mode
   static const Color darkSurface = Color(0xFF091c31); // Very dark blue
 
   // Text colors
@@ -192,19 +190,19 @@ class AppTheme {
       hintStyle: GoogleFonts.inter(color: lightTextSecondary.withOpacity(0.7)),
       labelStyle: GoogleFonts.inter(color: lightTextSecondary),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(28),
         borderSide: BorderSide(color: lightBorder),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(28),
         borderSide: BorderSide(color: lightBorder),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: lightPrimaryStart),
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(color: lightPrimaryStart, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(28),
         borderSide: BorderSide(color: lightSecondaryStart),
       ),
     ),
@@ -265,19 +263,19 @@ class AppTheme {
       hintStyle: GoogleFonts.inter(color: darkTextSecondary.withOpacity(0.7)),
       labelStyle: GoogleFonts.inter(color: darkTextSecondary),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(28),
         borderSide: BorderSide(color: darkBorder),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(28),
         borderSide: BorderSide(color: darkBorder),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: darkPrimaryStart),
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(color: darkPrimaryStart, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(28),
         borderSide: BorderSide(color: darkSecondaryStart),
       ),
     ),

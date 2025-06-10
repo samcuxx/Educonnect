@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../utils/app_theme.dart';
@@ -102,7 +103,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                               children: [
                                 Text(
                                   _getGreeting(),
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     fontSize: 16,
                                     color:
                                         isDark
@@ -126,9 +127,8 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                                       child: Text(
                                         user?.fullName.split(' ').first ??
                                             'User',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.headlineSmall?.copyWith(
+                                        style: GoogleFonts.inter(
+                                          fontSize: 24,
                                           fontWeight: FontWeight.bold,
                                           color: Colors.white,
                                         ),
@@ -154,7 +154,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                                           : AppTheme.lightPrimaryStart
                                               .withOpacity(0.2)),
                               child: Icon(
-                                Icons.person,
+                                Icons.person_outline_rounded,
                                 size: 30,
                                 color:
                                     isLecturer
@@ -175,7 +175,8 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                         GradientContainer(
                           useSecondaryGradient: isLecturer,
                           padding: const EdgeInsets.all(16),
-                          borderRadius: 16,
+                          borderRadius: 28,
+                          useCardStyle: false,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -184,20 +185,18 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                                 children: [
                                   Text(
                                     DateFormat('EEEE').format(now),
-                                    style: const TextStyle(
+                                    style: GoogleFonts.inter(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
+                                      color: Colors.white,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     DateFormat('MMMM d, yyyy').format(now),
-                                    style: TextStyle(
+                                    style: GoogleFonts.inter(
                                       fontSize: 14,
-                                      color:
-                                          isDark
-                                              ? AppTheme.darkTextSecondary
-                                              : AppTheme.lightTextSecondary,
+                                      color: Colors.white.withOpacity(0.85),
                                     ),
                                   ),
                                 ],
@@ -208,51 +207,22 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                                   vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color:
-                                      isLecturer
-                                          ? (isDark
-                                              ? AppTheme.darkSecondaryStart
-                                                  .withOpacity(0.2)
-                                              : AppTheme.lightSecondaryStart
-                                                  .withOpacity(0.2))
-                                          : (isDark
-                                              ? AppTheme.darkPrimaryStart
-                                                  .withOpacity(0.2)
-                                              : AppTheme.lightPrimaryStart
-                                                  .withOpacity(0.2)),
-                                  borderRadius: BorderRadius.circular(20),
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(28),
                                 ),
                                 child: Row(
                                   children: [
                                     Icon(
-                                      Icons.calendar_today,
+                                      Icons.calendar_today_outlined,
                                       size: 16,
-                                      color:
-                                          isLecturer
-                                              ? (isDark
-                                                  ? AppTheme.darkSecondaryStart
-                                                  : AppTheme
-                                                      .lightSecondaryStart)
-                                              : (isDark
-                                                  ? AppTheme.darkPrimaryStart
-                                                  : AppTheme.lightPrimaryStart),
+                                      color: Colors.white,
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
                                       'Today',
-                                      style: TextStyle(
+                                      style: GoogleFonts.inter(
                                         fontWeight: FontWeight.bold,
-                                        color:
-                                            isLecturer
-                                                ? (isDark
-                                                    ? AppTheme
-                                                        .darkSecondaryStart
-                                                    : AppTheme
-                                                        .lightSecondaryStart)
-                                                : (isDark
-                                                    ? AppTheme.darkPrimaryStart
-                                                    : AppTheme
-                                                        .lightPrimaryStart),
+                                        color: Colors.white,
                                       ),
                                     ),
                                   ],
@@ -301,9 +271,12 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       children: [
         Text(
           'Overview',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          style: GoogleFonts.inter(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color:
+                isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+          ),
         ),
         const SizedBox(height: 16),
         Row(
@@ -311,7 +284,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             Expanded(
               child: _buildStatCard(
                 context: context,
-                icon: isLecturer ? Icons.class_ : Icons.school,
+                icon: isLecturer ? Icons.class_outlined : Icons.school_outlined,
                 title: isLecturer ? 'My Classes' : 'My Courses',
                 value: classes.length.toString(),
                 gradient:
@@ -325,7 +298,10 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             Expanded(
               child: _buildStatCard(
                 context: context,
-                icon: isLecturer ? Icons.people : Icons.assignment,
+                icon:
+                    isLecturer
+                        ? Icons.people_outline
+                        : Icons.assignment_outlined,
                 title: isLecturer ? 'Students' : 'Assignments',
                 value: '0', // This would come from a provider
                 gradient:
@@ -353,14 +329,11 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,21 +342,25 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               gradient: gradient,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(icon, color: Colors.white, size: 20),
           ),
           const SizedBox(height: 16),
           Text(
             value,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            style: GoogleFonts.inter(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color:
+                  isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(
+            style: GoogleFonts.inter(
+              fontSize: 14,
               color:
                   isDark
                       ? AppTheme.darkTextSecondary
@@ -409,9 +386,14 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
           children: [
             Text(
               'Recent Classes',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color:
+                    isDark
+                        ? AppTheme.darkTextPrimary
+                        : AppTheme.lightTextPrimary,
+              ),
             ),
             TextButton(
               onPressed: () {
@@ -420,7 +402,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
               },
               child: Text(
                 'View All',
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   color:
                       isLecturer
                           ? (isDark
@@ -466,20 +448,17 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+          width: 1,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(28),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(28),
           onTap: () {
             Navigator.push(
               context,
@@ -523,10 +502,14 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                         isLecturer
                             ? AppTheme.secondaryGradient(isDark)
                             : AppTheme.primaryGradient(isDark),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Center(
-                    child: Icon(Icons.class_, color: Colors.white, size: 24),
+                    child: Icon(
+                      Icons.class_outlined,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -536,9 +519,13 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                     children: [
                       Text(
                         classItem.name,
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
+                          color:
+                              isDark
+                                  ? AppTheme.darkTextPrimary
+                                  : AppTheme.lightTextPrimary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -546,7 +533,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                       const SizedBox(height: 4),
                       Text(
                         classItem.courseCode,
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           color:
                               isDark
                                   ? AppTheme.darkTextSecondary
@@ -556,7 +543,14 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, size: 16),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color:
+                      isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary,
+                ),
               ],
             ),
           ),
@@ -587,6 +581,17 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                           ? AppTheme.darkPrimaryStart.withOpacity(0.2)
                           : AppTheme.lightPrimaryStart.withOpacity(0.1)),
               shape: BoxShape.circle,
+              border: Border.all(
+                color:
+                    isLecturer
+                        ? (isDark
+                            ? AppTheme.darkSecondaryStart.withOpacity(0.5)
+                            : AppTheme.lightSecondaryStart.withOpacity(0.5))
+                        : (isDark
+                            ? AppTheme.darkPrimaryStart.withOpacity(0.5)
+                            : AppTheme.lightPrimaryStart.withOpacity(0.5)),
+                width: 1,
+              ),
             ),
             child: Icon(
               isLecturer ? Icons.school_outlined : Icons.class_outlined,
@@ -604,14 +609,19 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
           const SizedBox(height: 16),
           Text(
             isLecturer ? 'No classes created yet' : 'No classes joined yet',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color:
+                  isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             isLecturer
                 ? 'Create your first class to get started'
                 : 'Join a class to get started',
-            style: TextStyle(
+            style: GoogleFonts.inter(
               color:
                   isDark
                       ? AppTheme.darkTextSecondary
