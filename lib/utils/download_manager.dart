@@ -12,7 +12,19 @@ import '../models/submission_model.dart';
 import 'file_utils.dart';
 
 class DownloadManager {
-  // Resource download tracking
+  // Singleton instance
+  static final DownloadManager _instance = DownloadManager._internal();
+
+  factory DownloadManager() => _instance;
+
+  DownloadManager._internal();
+
+  // Unified global download tracking - all downloads are stored in global keys
+  static const String _globalResourcesKey = 'downloaded_resources_all';
+  static const String _globalAssignmentsKey = 'downloaded_assignments_all';
+  static const String _globalSubmissionsKey = 'downloaded_submissions_all';
+
+  // Progress tracking (in-memory)
   final Map<String, double> downloadProgress = {};
   final Map<String, String> downloadedFiles = {};
 
@@ -86,15 +98,15 @@ class DownloadManager {
       await sink.flush();
       await sink.close();
 
-      // Save the file path
+      // Save the file path globally
       downloadedFiles[resource.id] = filePath;
       downloadProgress.remove(resource.id);
 
       onProgressUpdate(Map.from(downloadProgress));
       onComplete(Map.from(downloadedFiles));
 
-      // Save the updated list of downloaded files
-      await _saveDownloadedFiles(downloadedFiles, resource.id.split('_')[0]);
+      // Save the updated list of downloaded files to global storage
+      await _saveDownloadedFiles(downloadedFiles);
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -190,18 +202,15 @@ class DownloadManager {
       await sink.flush();
       await sink.close();
 
-      // Save the file path
+      // Save the file path globally
       downloadedAssignments[assignment.id] = filePath;
       assignmentDownloadProgress.remove(assignment.id);
 
       onProgressUpdate(Map.from(assignmentDownloadProgress));
       onComplete(Map.from(downloadedAssignments));
 
-      // Update the stored list of downloaded files
-      await _saveDownloadedAssignments(
-        downloadedAssignments,
-        assignment.id.split('_')[0],
-      );
+      // Update the global storage for downloaded assignments
+      await _saveDownloadedAssignments(downloadedAssignments);
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -277,49 +286,59 @@ class DownloadManager {
       }
 
       // Download the file with progress reporting
-      final response = await http.Client().send(http.Request('GET', uri));
-      final contentLength = response.contentLength ?? 0;
+      final client = http.Client();
+      try {
+        final response = await client.send(http.Request('GET', uri));
+        final contentLength = response.contentLength ?? 0;
 
-      final sink = file.openWrite();
-      int bytesReceived = 0;
+        final sink = file.openWrite();
+        int bytesReceived = 0;
 
-      await response.stream.listen((List<int> chunk) {
-        sink.add(chunk);
-        bytesReceived += chunk.length;
+        await response.stream.listen((List<int> chunk) {
+          sink.add(chunk);
+          bytesReceived += chunk.length;
 
-        if (contentLength > 0) {
-          submissionDownloadProgress[submission.id] =
-              bytesReceived / contentLength;
-          onProgressUpdate(Map.from(submissionDownloadProgress));
+          if (contentLength > 0) {
+            submissionDownloadProgress[submission.id] =
+                bytesReceived / contentLength;
+            onProgressUpdate(Map.from(submissionDownloadProgress));
+          }
+        }).asFuture();
+
+        await sink.flush();
+        await sink.close();
+
+        // Save the file path globally
+        downloadedSubmissions[submission.id] = filePath;
+
+        // CRITICAL FIX: Also save the file path under the assignment ID for student's own submission
+        // This allows students to access their own submission via the assignment
+        if (submission.assignmentId != null &&
+            submission.assignmentId!.isNotEmpty) {
+          downloadedSubmissions[submission.assignmentId!] = filePath;
         }
-      }).asFuture();
 
-      await sink.flush();
-      await sink.close();
+        submissionDownloadProgress.remove(submission.id);
 
-      // Save the file path
-      downloadedSubmissions[submission.id] = filePath;
-      submissionDownloadProgress.remove(submission.id);
+        onProgressUpdate(Map.from(submissionDownloadProgress));
+        onComplete(Map.from(downloadedSubmissions));
 
-      onProgressUpdate(Map.from(submissionDownloadProgress));
-      onComplete(Map.from(downloadedSubmissions));
+        // Update the global storage for downloaded submissions
+        await _saveDownloadedSubmissions(downloadedSubmissions);
 
-      // Update the stored list of downloaded files
-      await _saveDownloadedSubmissions(
-        downloadedSubmissions,
-        submission.id.split('_')[0],
-      );
-
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${submission.studentName}\'s submission downloaded successfully',
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${submission.studentName}\'s submission downloaded successfully',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
           ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+        );
+      } finally {
+        client.close();
+      }
     } catch (e) {
       print('Error downloading submission file: $e');
 
@@ -368,11 +387,11 @@ class DownloadManager {
     }
   }
 
-  // Load downloaded resources from SharedPreferences
-  Future<Map<String, String>> loadDownloadedFiles(String classId) async {
+  // Load ALL downloaded resources globally (not class-specific)
+  Future<Map<String, String>> loadDownloadedFiles() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final fileMap = prefs.getString('downloaded_resources_$classId');
+      final fileMap = prefs.getString(_globalResourcesKey);
 
       if (fileMap != null) {
         final map = Map<String, String>.from(json.decode(fileMap));
@@ -390,7 +409,7 @@ class DownloadManager {
 
         // Save changes if any files were removed
         if (map.length != json.decode(fileMap).length) {
-          await _saveDownloadedFiles(map, classId);
+          await _saveDownloadedFiles(map);
         }
 
         downloadedFiles.clear();
@@ -404,11 +423,11 @@ class DownloadManager {
     }
   }
 
-  // Load downloaded assignments from SharedPreferences
-  Future<Map<String, String>> loadDownloadedAssignments(String classId) async {
+  // Load ALL downloaded assignments globally (not class-specific)
+  Future<Map<String, String>> loadDownloadedAssignments() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final fileMap = prefs.getString('downloaded_assignments_$classId');
+      final fileMap = prefs.getString(_globalAssignmentsKey);
 
       if (fileMap != null) {
         final map = Map<String, String>.from(json.decode(fileMap));
@@ -426,7 +445,7 @@ class DownloadManager {
 
         // Save changes if any files were removed
         if (map.length != json.decode(fileMap).length) {
-          await _saveDownloadedAssignments(map, classId);
+          await _saveDownloadedAssignments(map);
         }
 
         downloadedAssignments.clear();
@@ -440,11 +459,11 @@ class DownloadManager {
     }
   }
 
-  // Load downloaded submissions from SharedPreferences
-  Future<Map<String, String>> loadDownloadedSubmissions(String classId) async {
+  // Load ALL downloaded submissions globally (not class-specific)
+  Future<Map<String, String>> loadDownloadedSubmissions() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final fileMap = prefs.getString('downloaded_submissions_$classId');
+      final fileMap = prefs.getString(_globalSubmissionsKey);
 
       if (fileMap != null) {
         final map = Map<String, String>.from(json.decode(fileMap));
@@ -462,7 +481,7 @@ class DownloadManager {
 
         // Save changes if any files were removed
         if (map.length != json.decode(fileMap).length) {
-          await _saveDownloadedSubmissions(map, classId);
+          await _saveDownloadedSubmissions(map);
         }
 
         downloadedSubmissions.clear();
@@ -476,49 +495,31 @@ class DownloadManager {
     }
   }
 
-  // Save downloaded resources to SharedPreferences
-  Future<void> _saveDownloadedFiles(
-    Map<String, String> files,
-    String classId,
-  ) async {
+  // Save downloaded resources to global SharedPreferences
+  Future<void> _saveDownloadedFiles(Map<String, String> files) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        'downloaded_resources_$classId',
-        json.encode(files),
-      );
+      await prefs.setString(_globalResourcesKey, json.encode(files));
     } catch (e) {
       print('Error saving downloaded files: $e');
     }
   }
 
-  // Save downloaded assignments to SharedPreferences
-  Future<void> _saveDownloadedAssignments(
-    Map<String, String> files,
-    String classId,
-  ) async {
+  // Save downloaded assignments to global SharedPreferences
+  Future<void> _saveDownloadedAssignments(Map<String, String> files) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        'downloaded_assignments_$classId',
-        json.encode(files),
-      );
+      await prefs.setString(_globalAssignmentsKey, json.encode(files));
     } catch (e) {
       print('Error saving downloaded assignments: $e');
     }
   }
 
-  // Save downloaded submissions to SharedPreferences
-  Future<void> _saveDownloadedSubmissions(
-    Map<String, String> files,
-    String classId,
-  ) async {
+  // Save downloaded submissions to global SharedPreferences
+  Future<void> _saveDownloadedSubmissions(Map<String, String> files) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        'downloaded_submissions_$classId',
-        json.encode(files),
-      );
+      await prefs.setString(_globalSubmissionsKey, json.encode(files));
     } catch (e) {
       print('Error saving downloaded submissions: $e');
     }
@@ -542,5 +543,55 @@ class DownloadManager {
       default:
         return '';
     }
+  }
+
+  // Download a student's own submission by assignment ID
+  Future<void> downloadStudentSubmission({
+    required String assignmentId,
+    required String studentId,
+    required String studentName,
+    required String fileUrl,
+    required String fileType,
+    required Function(Map<String, double>) onProgressUpdate,
+    required Function(Map<String, String>) onComplete,
+    required BuildContext context,
+  }) async {
+    if (submissionDownloadProgress.containsKey(assignmentId) ||
+        fileUrl.isEmpty) {
+      return; // Already downloading or no file URL
+    }
+
+    // Create a temporary submission model to use with the existing download method
+    final submission = SubmissionModel(
+      id: "temp_${assignmentId}_$studentId",
+      assignmentId: assignmentId,
+      studentId: studentId,
+      studentName: studentName,
+      submittedAt: DateTime.now(),
+      fileUrl: fileUrl,
+      fileType: fileType,
+    );
+
+    // Use the existing download method
+    await downloadSubmission(
+      submission: submission,
+      onProgressUpdate: onProgressUpdate,
+      onComplete: onComplete,
+      context: context,
+    );
+  }
+
+  // Get combined downloaded files map that includes resources, assignments, and submissions
+  Future<Map<String, String>> getAllDownloadedFiles() async {
+    final resources = await loadDownloadedFiles();
+    final assignments = await loadDownloadedAssignments();
+    final submissions = await loadDownloadedSubmissions();
+
+    final combined = <String, String>{};
+    combined.addAll(resources);
+    combined.addAll(assignments);
+    combined.addAll(submissions);
+
+    return combined;
   }
 }

@@ -16,6 +16,9 @@ class ClassProvider extends ChangeNotifier {
   bool _isOffline = false;
 
   ClassProvider(this._supabaseService) {
+    // Load cached student count immediately
+    _loadCachedStudentCount();
+
     // Listen to connectivity changes
     _cacheManager.connectivityStream.listen((isOnline) {
       final wasOffline = _isOffline;
@@ -24,6 +27,11 @@ class ClassProvider extends ChangeNotifier {
       // If we just came back online and had loaded classes before, refresh data
       if (wasOffline && isOnline && _classes.isNotEmpty) {
         _refreshClassesBasedOnRole();
+      }
+
+      // If we just went offline, make sure we have cached data loaded
+      if (!wasOffline && !isOnline && _classes.isEmpty) {
+        _loadCachedClasses();
       }
 
       notifyListeners();
@@ -36,20 +44,31 @@ class ClassProvider extends ChangeNotifier {
   String? get error => _error;
   String? get errorMessage => _error;
   bool get isOffline => _isOffline;
+  CacheManager get cacheManager => _cacheManager;
 
   // Get total student count for all lecturer classes
   int _cachedStudentCount = 0;
 
   int get totalStudents {
-    if (isOffline && _cachedStudentCount > 0) {
-      // Return cached value if we're offline and have a cache
-      return _cachedStudentCount;
-    }
-    int count = 0;
+    // Calculate from classes if we have them with student counts
+    int calculatedCount = 0;
     for (var classItem in _classes) {
-      count += classItem.studentCount;
+      calculatedCount += classItem.studentCount;
     }
-    return count;
+
+    // If we have a calculated count, use it (and update cache)
+    if (calculatedCount > 0) {
+      // Update cached count if it's different
+      if (_cachedStudentCount != calculatedCount) {
+        _cachedStudentCount = calculatedCount;
+        // Save to persistent storage (don't await to avoid blocking)
+        _saveCachedStudentCount();
+      }
+      return calculatedCount;
+    }
+
+    // Otherwise use cached count
+    return _cachedStudentCount;
   }
 
   // Helper method to refresh classes based on current role
@@ -58,6 +77,7 @@ class ClassProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _cachedStudentCount = prefs.getInt('cached_student_count') ?? 0;
+      notifyListeners(); // Notify listeners when cached count is loaded
     } catch (e) {
       print('Error loading cached student count: $e');
     }
@@ -197,6 +217,9 @@ class ClassProvider extends ChangeNotifier {
     try {
       _status = ClassProviderStatus.loading;
 
+      // Load cached student count first
+      await _loadCachedStudentCount();
+
       // Load from cache first
       final cachedClasses = await _cacheManager.getCachedClasses();
 
@@ -216,6 +239,9 @@ class ClassProvider extends ChangeNotifier {
 
         // Load student counts if online
         await loadStudentCounts();
+
+        // Save updated student count
+        await _saveCachedStudentCount();
 
         _status = ClassProviderStatus.loaded;
         notifyListeners();
@@ -364,12 +390,16 @@ class ClassProvider extends ChangeNotifier {
     }
   }
 
-  // Force refresh classes
   // Save student count to cache
   Future<void> _saveCachedStudentCount() async {
     try {
-      if (totalStudents > 0) {
-        _cachedStudentCount = totalStudents;
+      int count = 0;
+      for (var classItem in _classes) {
+        count += classItem.studentCount;
+      }
+
+      if (count > 0) {
+        _cachedStudentCount = count;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('cached_student_count', _cachedStudentCount);
       }
@@ -431,5 +461,24 @@ class ClassProvider extends ChangeNotifier {
   void setOfflineStatus(bool offline) {
     _isOffline = offline;
     notifyListeners();
+  }
+
+  // Load cached classes when going offline
+  Future<void> _loadCachedClasses() async {
+    try {
+      // Load cached student count
+      await _loadCachedStudentCount();
+
+      // Load cached classes
+      final cachedClasses = await _cacheManager.getCachedClasses();
+
+      if (cachedClasses.isNotEmpty) {
+        _classes = cachedClasses;
+        _status = ClassProviderStatus.loaded;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error loading cached classes: $e');
+    }
   }
 }

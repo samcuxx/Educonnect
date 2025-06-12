@@ -29,6 +29,8 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
   bool _isPhoneVerified = false;
   bool _isCheckingEmail = false;
   bool _isCheckingPhone = false;
+  bool _isSendingOtp = false;
+  DateTime? _lastOtpSentTime;
   String? _emailError;
   String? _phoneError;
 
@@ -163,45 +165,84 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
       return;
     }
 
-    // Send OTP
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final otpSent = await authProvider.sendOtp(phoneNumber);
+    // Check rate limiting - prevent multiple OTP sends within 60 seconds
+    if (_lastOtpSentTime != null) {
+      final timeSinceLastOtp = DateTime.now().difference(_lastOtpSentTime!);
+      if (timeSinceLastOtp.inSeconds < 60) {
+        final remainingSeconds = 60 - timeSinceLastOtp.inSeconds;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Please wait $remainingSeconds seconds before requesting a new code',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
 
-    if (!otpSent) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to send verification code. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    // Prevent multiple simultaneous OTP sends
+    if (_isSendingOtp) {
       return;
     }
 
-    // Show OTP verification dialog
-    final verified = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => OtpVerificationDialog(
-            phoneNumber: phoneNumber,
-            onVerificationComplete: () {
-              setState(() {
-                _isPhoneVerified = true;
-              });
-            },
-          ),
-    );
+    setState(() {
+      _isSendingOtp = true;
+    });
 
-    if (verified == true) {
+    try {
+      // Send OTP
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final otpSent = await authProvider.sendOtp(phoneNumber);
+
+      if (!otpSent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Failed to send verification code. Please try again.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Update last OTP sent time
       setState(() {
-        _isPhoneVerified = true;
+        _lastOtpSentTime = DateTime.now();
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Phone number verified successfully!'),
-          backgroundColor: Colors.green,
-        ),
+
+      // Show OTP verification dialog
+      final verified = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => OtpVerificationDialog(
+              phoneNumber: phoneNumber,
+              onVerificationComplete: () {
+                setState(() {
+                  _isPhoneVerified = true;
+                });
+              },
+            ),
       );
+
+      if (verified == true) {
+        setState(() {
+          _isPhoneVerified = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Phone number verified successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isSendingOtp = false;
+      });
     }
   }
 
@@ -659,9 +700,20 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                                         Colors.green.shade600,
                                                       ],
                                                     )
-                                                    : AppTheme.primaryGradient(
-                                                      isDark,
-                                                    ),
+                                                    : (_isSendingOtp
+                                                        ? LinearGradient(
+                                                          colors: [
+                                                            Colors
+                                                                .grey
+                                                                .shade400,
+                                                            Colors
+                                                                .grey
+                                                                .shade600,
+                                                          ],
+                                                        )
+                                                        : AppTheme.primaryGradient(
+                                                          isDark,
+                                                        )),
                                             borderRadius: BorderRadius.circular(
                                               12,
                                             ),
@@ -672,7 +724,8 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                               borderRadius:
                                                   BorderRadius.circular(12),
                                               onTap:
-                                                  _isPhoneVerified
+                                                  _isPhoneVerified ||
+                                                          _isSendingOtp
                                                       ? null
                                                       : _verifyPhoneNumber,
                                               child: Padding(
@@ -681,17 +734,37 @@ class _StudentSignupScreenState extends State<StudentSignupScreen> {
                                                       horizontal: 16.0,
                                                     ),
                                                 child: Center(
-                                                  child: Text(
-                                                    _isPhoneVerified
-                                                        ? 'Verified'
-                                                        : 'Verify',
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
+                                                  child:
+                                                      _isSendingOtp
+                                                          ? const SizedBox(
+                                                            width: 16,
+                                                            height: 16,
+                                                            child: CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                              valueColor:
+                                                                  AlwaysStoppedAnimation<
+                                                                    Color
+                                                                  >(
+                                                                    Colors
+                                                                        .white,
+                                                                  ),
+                                                            ),
+                                                          )
+                                                          : Text(
+                                                            _isPhoneVerified
+                                                                ? 'Verified'
+                                                                : 'Verify',
+                                                            style:
+                                                                const TextStyle(
+                                                                  color:
+                                                                      Colors
+                                                                          .white,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                  fontSize: 14,
+                                                                ),
+                                                          ),
                                                 ),
                                               ),
                                             ),

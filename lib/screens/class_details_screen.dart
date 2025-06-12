@@ -23,6 +23,7 @@ import '../providers/class_provider.dart';
 import '../services/supabase_service.dart';
 import '../services/connectivity_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/global_download_manager.dart';
 import 'submissions_screen.dart';
 
 class ClassDetailsScreen extends StatefulWidget {
@@ -86,7 +87,7 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
     _loadResources();
     _loadAssignments();
 
-    // Load downloaded files info
+    // Load downloaded files info using global download manager
     _loadDownloadedFiles();
     _loadDownloadedAssignments();
     _loadDownloadedSubmissions();
@@ -139,6 +140,11 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
         });
       }
 
+      // Load submission status for students
+      if (!authProvider.isLecturer && assignments.isNotEmpty) {
+        await _loadSubmissionStatus(assignments);
+      }
+
       // Then try to refresh from network without showing loading indicator
       try {
         // Try to get fresh data if we're online
@@ -152,6 +158,11 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
             _assignments = freshAssignments;
             _isOffline = false;
           });
+        }
+
+        // Reload submission status with fresh assignments
+        if (!authProvider.isLecturer && freshAssignments.isNotEmpty) {
+          await _loadSubmissionStatus(freshAssignments);
         }
       } catch (e) {
         // Silently fail when refreshing - we already have cached data
@@ -201,9 +212,26 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
       return; // Skip if we checked less than 5 minutes ago
     }
 
+    // Check connectivity first - only refresh from network if online
+    bool isOnline = true;
+    try {
+      final connectivityService = Provider.of<ConnectivityService>(
+        context,
+        listen: false,
+      );
+      isOnline = await connectivityService.checkConnectivity();
+    } catch (e) {
+      isOnline = false;
+      print('Error checking connectivity: $e');
+    }
+
+    // Always try to load announcements (will use cache if offline)
     await _loadAnnouncements();
     _lastAnnouncementCheck = now;
     _initialLoadDone = true;
+
+    // Update offline status
+    _updateOfflineStatus(!isOnline);
   }
 
   // Load cached announcements from SharedPreferences while we check for updates
@@ -1871,46 +1899,25 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
     });
   }
 
-  // Add method to load downloaded files info
+  // Load downloaded files info
   Future<void> _loadDownloadedFiles() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final fileMap = prefs.getString(
-        'downloaded_resources_${widget.classModel.id}',
-      );
-
-      if (fileMap != null) {
-        setState(() {
-          _downloadedFiles = Map<String, String>.from(json.decode(fileMap));
-        });
-
-        // Verify files still exist
-        for (final resourceId in _downloadedFiles.keys.toList()) {
-          final filePath = _downloadedFiles[resourceId];
-          if (filePath != null) {
-            final file = File(filePath);
-            if (!await file.exists()) {
-              setState(() {
-                _downloadedFiles.remove(resourceId);
-              });
-            }
-          }
-        }
-
-        // Save changes if any files were removed
-        await _saveDownloadedFiles();
-      }
+      final downloadedFiles = await globalDownloadManager.loadDownloadedFiles();
+      setState(() {
+        _downloadedFiles = downloadedFiles;
+      });
     } catch (e) {
       print('Error loading downloaded files: $e');
     }
   }
 
-  // Add method to save downloaded files info
+  // Save downloaded files info
   Future<void> _saveDownloadedFiles() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Save to global storage instead of per-class storage
       await prefs.setString(
-        'downloaded_resources_${widget.classModel.id}',
+        'downloaded_resources_all',
         json.encode(_downloadedFiles),
       );
     } catch (e) {
@@ -2124,48 +2131,26 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
     }
   }
 
-  // Add method to load downloaded assignments info
+  // Load downloaded assignments info
   Future<void> _loadDownloadedAssignments() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final fileMap = prefs.getString(
-        'downloaded_assignments_${widget.classModel.id}',
-      );
-
-      if (fileMap != null) {
-        setState(() {
-          _downloadedAssignments = Map<String, String>.from(
-            json.decode(fileMap),
-          );
-        });
-
-        // Verify files still exist
-        for (final assignmentId in _downloadedAssignments.keys.toList()) {
-          final filePath = _downloadedAssignments[assignmentId];
-          if (filePath != null) {
-            final file = File(filePath);
-            if (!await file.exists()) {
-              setState(() {
-                _downloadedAssignments.remove(assignmentId);
-              });
-            }
-          }
-        }
-
-        // Save changes if any files were removed
-        await _saveDownloadedAssignments();
-      }
+      final downloadedAssignments =
+          await globalDownloadManager.loadDownloadedAssignments();
+      setState(() {
+        _downloadedAssignments = downloadedAssignments;
+      });
     } catch (e) {
       print('Error loading downloaded assignments: $e');
     }
   }
 
-  // Add method to save downloaded assignments info
+  // Save downloaded assignments info
   Future<void> _saveDownloadedAssignments() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Save to global storage instead of per-class storage
       await prefs.setString(
-        'downloaded_assignments_${widget.classModel.id}',
+        'downloaded_assignments_all',
         json.encode(_downloadedAssignments),
       );
     } catch (e) {
@@ -2175,8 +2160,9 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
 
   // Add method to download an assignment file
   Future<void> _downloadAssignmentFile(AssignmentModel assignment) async {
-    if (_assignmentDownloadProgress.containsKey(assignment.id)) {
-      return; // Already downloading
+    if (_assignmentDownloadProgress.containsKey(assignment.id) ||
+        assignment.fileUrl == null) {
+      return; // Already downloading or no file URL
     }
 
     // Check connectivity before attempting download
@@ -2188,29 +2174,33 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
       final isOnline = await connectivityService.checkConnectivity();
 
       if (!isOnline) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'You\'re offline. Please connect to the internet to download assignments.',
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'You\'re offline. Please connect to the internet to download assignments.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'DISMISS',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              ),
             ),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'DISMISS',
-              textColor: Colors.white,
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-            ),
-          ),
-        );
+          );
+        }
         return;
       }
 
       // Initialize progress
-      setState(() {
-        _assignmentDownloadProgress[assignment.id] = 0.0;
-      });
+      if (mounted) {
+        setState(() {
+          _assignmentDownloadProgress[assignment.id] = 0.0;
+        });
+      }
 
       // Create the downloads directory if it doesn't exist
       final appDir = await getApplicationDocumentsDirectory();
@@ -2241,84 +2231,96 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
       }
 
       // Download the file with progress reporting
-      final response = await http.Client().send(http.Request('GET', uri));
-      final contentLength = response.contentLength ?? 0;
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', uri);
+        final response = await client.send(request);
+        final contentLength = response.contentLength ?? 0;
 
-      final sink = file.openWrite();
-      int bytesReceived = 0;
+        final sink = file.openWrite();
+        int bytesReceived = 0;
 
-      await response.stream.listen((List<int> chunk) {
-        sink.add(chunk);
-        bytesReceived += chunk.length;
+        await response.stream.listen((List<int> chunk) {
+          sink.add(chunk);
+          bytesReceived += chunk.length;
 
-        if (contentLength > 0) {
+          if (contentLength > 0 && mounted) {
+            setState(() {
+              _assignmentDownloadProgress[assignment.id] =
+                  bytesReceived / contentLength;
+            });
+          }
+        }).asFuture();
+
+        await sink.flush();
+        await sink.close();
+
+        // Save the file path
+        if (mounted) {
           setState(() {
-            _assignmentDownloadProgress[assignment.id] =
-                bytesReceived / contentLength;
+            _downloadedAssignments[assignment.id] = filePath;
+            _assignmentDownloadProgress.remove(assignment.id);
           });
         }
-      }).asFuture();
 
-      await sink.flush();
-      await sink.close();
+        // Update the stored list of downloaded files
+        await _saveDownloadedAssignments();
 
-      // Save the file path
-      setState(() {
-        _downloadedAssignments[assignment.id] = filePath;
-        _assignmentDownloadProgress.remove(assignment.id);
-      });
-
-      // Update the stored list of downloaded files
-      await _saveDownloadedAssignments();
-
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${assignment.title} downloaded successfully'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${assignment.title} downloaded successfully'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } finally {
+        client.close();
+      }
     } catch (e) {
       print('Error downloading assignment file: $e');
 
       // Remove progress indicator
-      setState(() {
-        _assignmentDownloadProgress.remove(assignment.id);
-      });
+      if (mounted) {
+        setState(() {
+          _assignmentDownloadProgress.remove(assignment.id);
+        });
 
-      // Show more specific error message based on the type of error
-      String errorMessage = 'Failed to download assignment';
-      Color errorColor = Colors.red;
+        // Show more specific error message based on the type of error
+        String errorMessage = 'Failed to download assignment';
+        Color errorColor = Colors.red;
 
-      if (e.toString().contains('SocketException') ||
-          e.toString().contains('ClientException') ||
-          e.toString().contains('Failed host lookup')) {
-        errorMessage =
-            'Download failed: You appear to be offline. Please check your internet connection.';
-        errorColor = Colors.orange;
-      } else if (e.toString().contains('Permission')) {
-        errorMessage = 'Download failed: Storage permission denied.';
-      } else if (e.toString().contains('404')) {
-        errorMessage =
-            'Download failed: The file no longer exists on the server.';
-      }
+        if (e.toString().contains('SocketException') ||
+            e.toString().contains('ClientException') ||
+            e.toString().contains('Failed host lookup')) {
+          errorMessage =
+              'Download failed: You appear to be offline. Please check your internet connection.';
+          errorColor = Colors.orange;
+        } else if (e.toString().contains('Permission')) {
+          errorMessage = 'Download failed: Storage permission denied.';
+        } else if (e.toString().contains('404')) {
+          errorMessage =
+              'Download failed: The file no longer exists on the server.';
+        }
 
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: errorColor,
-          duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'DISMISS',
-            textColor: Colors.white,
-            onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            },
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: errorColor,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'DISMISS',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -2362,48 +2364,26 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
     }
   }
 
-  // Add method to load downloaded submissions info
+  // Load downloaded submissions info
   Future<void> _loadDownloadedSubmissions() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final fileMap = prefs.getString(
-        'downloaded_submissions_${widget.classModel.id}',
-      );
-
-      if (fileMap != null) {
-        setState(() {
-          _downloadedSubmissions = Map<String, String>.from(
-            json.decode(fileMap),
-          );
-        });
-
-        // Verify files still exist
-        for (final submissionId in _downloadedSubmissions.keys.toList()) {
-          final filePath = _downloadedSubmissions[submissionId];
-          if (filePath != null) {
-            final file = File(filePath);
-            if (!await file.exists()) {
-              setState(() {
-                _downloadedSubmissions.remove(submissionId);
-              });
-            }
-          }
-        }
-
-        // Save changes if any files were removed
-        await _saveDownloadedSubmissions();
-      }
+      final downloadedSubmissions =
+          await globalDownloadManager.loadDownloadedSubmissions();
+      setState(() {
+        _downloadedSubmissions = downloadedSubmissions;
+      });
     } catch (e) {
       print('Error loading downloaded submissions: $e');
     }
   }
 
-  // Add method to save downloaded submissions info
+  // Save downloaded submissions info
   Future<void> _saveDownloadedSubmissions() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Save to global storage instead of per-class storage
       await prefs.setString(
-        'downloaded_submissions_${widget.classModel.id}',
+        'downloaded_submissions_all',
         json.encode(_downloadedSubmissions),
       );
     } catch (e) {
@@ -2560,6 +2540,133 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
           ),
         ),
       );
+    }
+  }
+
+  // Add method to open a submitted assignment file (for students to view their own submission)
+  Future<void> _openMySubmissionFile(AssignmentModel assignment) async {
+    try {
+      final filePath = _downloadedSubmissions[assignment.id];
+      if (filePath == null) {
+        throw Exception('Submission file not found offline');
+      }
+
+      final file = File(filePath);
+      if (!await file.exists()) {
+        throw Exception('File no longer exists');
+      }
+
+      final result = await OpenFilex.open(filePath);
+      if (result.type != ResultType.done) {
+        throw Exception('Could not open file: ${result.message}');
+      }
+    } catch (e) {
+      print('Error opening my submission file: $e');
+
+      // Remove from downloaded files if it doesn't exist
+      if (e.toString().contains('no longer exists') ||
+          e.toString().contains('not found')) {
+        setState(() {
+          _downloadedSubmissions.remove(assignment.id);
+        });
+        await _saveDownloadedSubmissions();
+      }
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open file: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // Download student's own submission file
+  Future<void> _downloadMySubmission(AssignmentModel assignment) async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final supabaseService = authProvider.supabaseService;
+
+      // Show downloading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 16),
+              Text('Fetching your submission...'),
+            ],
+          ),
+          duration: Duration(seconds: 10),
+        ),
+      );
+
+      // Get the student's submission for this assignment
+      final submission = await supabaseService.getStudentSubmission(
+        assignmentId: assignment.id,
+        studentId: authProvider.currentUser!.id,
+      );
+
+      if (submission == null || submission.fileUrl == null) {
+        // Clear previous snackbar
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No submission file found'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Clear previous snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Use global download manager to download the submission
+      await globalDownloadManager.downloadSubmission(
+        submission: submission,
+        onProgressUpdate: (progress) {
+          if (mounted) {
+            setState(() {
+              _submissionDownloadProgress = progress;
+            });
+          }
+        },
+        onComplete: (downloads) {
+          if (mounted) {
+            setState(() {
+              _downloadedSubmissions = downloads;
+            });
+          }
+        },
+        context: context,
+      );
+    } catch (e) {
+      print('Error downloading my submission: $e');
+
+      // Clear previous snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download submission: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -5260,30 +5367,116 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
                                     ),
                                   ),
                                   if (!isLecturer && !hasSubmitted)
-                                    TextButton.icon(
-                                      icon: const Icon(
-                                        Icons.upload_file,
-                                        size: 16,
-                                      ),
-                                      label: Text(
-                                        isOverdue ? 'Submit Late' : 'Submit',
-                                      ),
-                                      onPressed:
-                                          () => _submitAssignment(assignment),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor:
-                                            isOverdue
-                                                ? Colors.red
-                                                : (isDark
-                                                    ? AppTheme.darkPrimaryStart
-                                                    : AppTheme
-                                                        .lightPrimaryStart),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ), // Reduced horizontal padding
+                                    Tooltip(
+                                      message:
+                                          _isOffline
+                                              ? 'You need to be online to submit assignments'
+                                              : 'Submit your assignment',
+                                      child: TextButton.icon(
+                                        icon: Icon(
+                                          _isOffline
+                                              ? Icons.cloud_off
+                                              : Icons.upload_file,
+                                          size: 16,
+                                        ),
+                                        label: Text(
+                                          _isOffline
+                                              ? 'Offline'
+                                              : (isOverdue
+                                                  ? 'Submit Late'
+                                                  : 'Submit'),
+                                        ),
+                                        onPressed:
+                                            _isOffline
+                                                ? null
+                                                : () => _submitAssignment(
+                                                  assignment,
+                                                ),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor:
+                                              _isOffline
+                                                  ? Colors.grey
+                                                  : (isOverdue
+                                                      ? Colors.red
+                                                      : (isDark
+                                                          ? AppTheme
+                                                              .darkPrimaryStart
+                                                          : AppTheme
+                                                              .lightPrimaryStart)),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                        ),
                                       ),
                                     )
+                                  else if (!isLecturer && hasSubmitted)
+                                    _downloadedSubmissions.containsKey(
+                                          assignment.id,
+                                        )
+                                        ? TextButton.icon(
+                                          icon: const Icon(
+                                            Icons.open_in_new,
+                                            size: 16,
+                                          ),
+                                          label: const Text('View File'),
+                                          onPressed:
+                                              () => _openMySubmissionFile(
+                                                assignment,
+                                              ),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor:
+                                                isDark
+                                                    ? AppTheme.darkPrimaryStart
+                                                    : AppTheme
+                                                        .lightPrimaryStart,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                          ),
+                                        )
+                                        : Tooltip(
+                                          message:
+                                              _isOffline
+                                                  ? 'Go online to download your submission'
+                                                  : 'Download your submission to view offline',
+                                          child: TextButton.icon(
+                                            icon: Icon(
+                                              _isOffline
+                                                  ? Icons.cloud_off
+                                                  : Icons.download,
+                                              size: 16,
+                                            ),
+                                            label: Text(
+                                              _isOffline
+                                                  ? 'Offline'
+                                                  : 'Download',
+                                            ),
+                                            onPressed:
+                                                _isOffline
+                                                    ? null
+                                                    : () =>
+                                                        _downloadMySubmission(
+                                                          assignment,
+                                                        ),
+                                            style: TextButton.styleFrom(
+                                              foregroundColor:
+                                                  _isOffline
+                                                      ? Colors.grey
+                                                      : (isDark
+                                                          ? AppTheme
+                                                              .darkPrimaryStart
+                                                          : AppTheme
+                                                              .lightPrimaryStart),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                            ),
+                                          ),
+                                        )
                                   else if (isLecturer)
                                     TextButton.icon(
                                       icon: const Icon(Icons.people, size: 16),
@@ -5611,5 +5804,308 @@ class _ClassDetailsScreenState extends State<ClassDetailsScreen>
     setState(() {
       _isOffline = isOffline;
     });
+  }
+
+  // Show submission details for students to view their own submission
+  void _showMySubmissionDetails(AssignmentModel assignment) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSubmissionDownloaded = _downloadedSubmissions.containsKey(
+      assignment.id,
+    );
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? AppTheme.darkSurface : Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.assignment_turned_in,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Your Submission',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              assignment.title,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.green.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Status',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Successfully Submitted',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (isSubmissionDownloaded) ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color:
+                                (isDark ? AppTheme.darkSurface : Colors.white),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: (isDark
+                                          ? AppTheme.darkPrimaryStart
+                                          : AppTheme.lightPrimaryStart)
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.description,
+                                  color:
+                                      isDark
+                                          ? AppTheme.darkPrimaryStart
+                                          : AppTheme.lightPrimaryStart,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Your Submission File',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color:
+                                            isDark
+                                                ? AppTheme.darkTextSecondary
+                                                : AppTheme.lightTextSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Available Offline',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TextButton.icon(
+                                icon: const Icon(Icons.open_in_new, size: 16),
+                                label: const Text('Open'),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _openMySubmissionFile(assignment);
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor:
+                                      isDark
+                                          ? AppTheme.darkPrimaryStart
+                                          : AppTheme.lightPrimaryStart,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.orange.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.cloud_download,
+                                  color: Colors.orange,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Submission File',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.orange,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      _isOffline
+                                          ? 'Go online to download your submission'
+                                          : 'Download to view offline',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  // Load submission status for assignments (for students)
+  Future<void> _loadSubmissionStatus(List<AssignmentModel> assignments) async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final supabaseService = authProvider.supabaseService;
+
+      // Check submission status for each assignment
+      for (final assignment in assignments) {
+        try {
+          final hasSubmitted = await supabaseService.hasSubmittedAssignment(
+            assignment.id,
+          );
+
+          if (mounted) {
+            setState(() {
+              _assignmentSubmissions[assignment.id] = hasSubmitted;
+            });
+          }
+        } catch (e) {
+          // If we can't check submission status, assume not submitted
+          print('Error checking submission status for ${assignment.id}: $e');
+          if (mounted) {
+            setState(() {
+              _assignmentSubmissions[assignment.id] = false;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading submission status: $e');
+    }
   }
 }

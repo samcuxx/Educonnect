@@ -164,18 +164,18 @@ class AuthWrapper extends StatelessWidget {
         authProvider.status == AuthStatus.initial) {
       return Scaffold(
         body: Column(
-          children: [
+            children: [
             buildOfflineIndicator(),
             Expanded(
               child: Center(
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).colorScheme.primary,
-                  ),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.primary,
                 ),
               ),
-            ),
-          ],
+                ),
+              ),
+            ],
         ),
       );
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 import '../../providers/auth_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../utils/app_theme.dart';
@@ -19,8 +20,10 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   bool _isLoading = false;
   bool _isRefreshing = false;
+  bool _isInitialLoad = true;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
+  StreamSubscription? _connectivitySubscription;
 
   @override
   void initState() {
@@ -38,50 +41,92 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
 
     // Use Future.microtask to avoid setState during build
     Future.microtask(() {
-      _loadData();
+      _loadData(isInitialLoad: true);
+      _setupConnectivityListener();
     });
+  }
+
+  void _setupConnectivityListener() {
+    // Get the ClassProvider
+    final classProvider = Provider.of<ClassProvider>(context, listen: false);
+
+    // Listen to connectivity changes
+    _connectivitySubscription = classProvider.cacheManager.connectivityStream
+        .listen((isOnline) {
+          // When connectivity changes, ensure we have data
+          if (!isOnline && mounted) {
+            // We went offline - make sure cached data is shown
+            _loadData(isInitialLoad: false);
+          }
+        });
   }
 
   @override
   void dispose() {
+    _connectivitySubscription?.cancel();
     _animationController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool isInitialLoad = false}) async {
     if (!mounted) return;
 
-    // Only show loading indicator if we have no data
+    // Get providers
     final classProvider = Provider.of<ClassProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    setState(() {
-      if (classProvider.classes.isEmpty) {
+    // For initial load, we never show loading indicator - we'll show cached data immediately
+    bool shouldShowLoading = !isInitialLoad && classProvider.classes.isEmpty;
+
+    if (shouldShowLoading) {
+      setState(() {
         _isLoading = true;
-      }
-    });
+      });
+    }
 
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-      // Load classes - this will first try to load from cache
-      if (authProvider.isLecturer) {
-        await classProvider.loadLecturerClasses();
-      } else if (authProvider.isStudent) {
-        await classProvider.loadStudentClasses();
+      // Always try to load cached data first, regardless of connectivity status
+      final cachedClasses = await classProvider.cacheManager.getCachedClasses();
+      if (cachedClasses.isNotEmpty && classProvider.classes.isEmpty) {
+        // If we have cached data but no loaded classes, use the cached data
+        if (authProvider.isLecturer) {
+          await classProvider.loadLecturerClasses();
+        } else if (authProvider.isStudent) {
+          await classProvider.loadStudentClasses();
+        }
+      } else if (classProvider.classes.isEmpty) {
+        // If no cached data and no loaded classes, try to load from server
+        if (authProvider.isLecturer) {
+          await classProvider.loadLecturerClasses();
+        } else if (authProvider.isStudent) {
+          await classProvider.loadStudentClasses();
+        }
       }
 
-      // If we already have cached data, refresh in the background
-      if (classProvider.classes.isNotEmpty) {
-        // Don't show loading, just refresh in background
-        await classProvider.refreshClasses(
-          isLecturer: authProvider.isLecturer,
-          showLoadingIndicator: false,
-        );
+      // Stop loading indicator once we have data (cached or fresh)
+      if (shouldShowLoading && mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        shouldShowLoading = false; // Prevent setting it again in finally
+      }
+
+      // If we have data, refresh in the background silently
+      if (classProvider.classes.isNotEmpty &&
+          classProvider.isOffline == false) {
+        try {
+          // Only refresh in background if we're online
+          await classProvider.refreshClasses(
+            isLecturer: authProvider.isLecturer,
+            showLoadingIndicator: false,
+          );
+        } catch (refreshError) {
+          // Silently fail background refresh - we already have cached data
+          print('Background refresh failed: $refreshError');
+        }
       }
     } catch (e) {
       // Handle error - but don't show if we loaded cached data
-      final classProvider = Provider.of<ClassProvider>(context, listen: false);
-
       if (classProvider.classes.isEmpty && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -95,6 +140,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _isInitialLoad = false; // No longer initial load
         });
       }
     }
@@ -149,278 +195,279 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       child: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refreshData,
-          child:
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Welcome message with gradient
+                    Row(
                       children: [
-                        // Welcome message with gradient
-                        Row(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _getGreeting(),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    color:
-                                        isDark
-                                            ? AppTheme.darkTextSecondary
-                                            : AppTheme.lightTextSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    ShaderMask(
-                                      shaderCallback:
-                                          (bounds) => (isLecturer
-                                                  ? AppTheme.secondaryGradient(
-                                                    isDark,
-                                                  )
-                                                  : AppTheme.primaryGradient(
-                                                    isDark,
-                                                  ))
-                                              .createShader(bounds),
-                                      child: Text(
-                                        user?.fullName.split(' ').first ??
-                                            'User',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                            Text(
+                              _getGreeting(),
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                color:
+                                    isDark
+                                        ? AppTheme.darkTextSecondary
+                                        : AppTheme.lightTextSecondary,
+                              ),
                             ),
-                            const Spacer(),
-                            Stack(
+                            const SizedBox(height: 4),
+                            Row(
                               children: [
-                                CircleAvatar(
-                                  radius: 26,
-                                  backgroundColor:
-                                      isLecturer
-                                          ? (isDark
-                                              ? AppTheme.darkSecondaryStart
-                                                  .withOpacity(0.2)
-                                              : AppTheme.lightSecondaryStart
-                                                  .withOpacity(0.2))
-                                          : (isDark
-                                              ? AppTheme.darkPrimaryStart
-                                                  .withOpacity(0.2)
-                                              : AppTheme.lightPrimaryStart
-                                                  .withOpacity(0.2)),
-                                  child: Icon(
-                                    Icons.person_outline_rounded,
-                                    size: 30,
-                                    color:
-                                        isLecturer
-                                            ? (isDark
-                                                ? AppTheme.darkSecondaryStart
-                                                : AppTheme.lightSecondaryStart)
-                                            : (isDark
-                                                ? AppTheme.darkPrimaryStart
-                                                : AppTheme.lightPrimaryStart),
-                                  ),
-                                ),
-                                if (isOffline)
-                                  Positioned(
-                                    right: 0,
-                                    bottom: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color:
-                                              isDark
-                                                  ? Colors.black
-                                                  : Colors.white,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: const Icon(
-                                        Icons.wifi_off,
-                                        size: 12,
-                                        color: Colors.white,
-                                      ),
+                                ShaderMask(
+                                  shaderCallback:
+                                      (bounds) => (isLecturer
+                                              ? AppTheme.secondaryGradient(
+                                                isDark,
+                                              )
+                                              : AppTheme.primaryGradient(
+                                                isDark,
+                                              ))
+                                          .createShader(bounds),
+                                  child: Text(
+                                    user?.fullName.split(' ').first ?? 'User',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
                                     ),
                                   ),
+                                ),
                               ],
                             ),
                           ],
                         ),
-
-                        const SizedBox(height: 24),
-
-                        // Date display with gradient container
-                        GradientContainer(
-                          useSecondaryGradient: isLecturer,
-                          padding: const EdgeInsets.all(16),
-                          borderRadius: 28,
-                          useCardStyle: false,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    DateFormat('EEEE').format(now),
-                                    style: GoogleFonts.inter(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    DateFormat('MMMM d, yyyy').format(now),
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      color: Colors.white.withOpacity(0.85),
-                                    ),
-                                  ),
-                                ],
+                        const Spacer(),
+                        Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 26,
+                              backgroundColor:
+                                  isLecturer
+                                      ? (isDark
+                                          ? AppTheme.darkSecondaryStart
+                                              .withOpacity(0.2)
+                                          : AppTheme.lightSecondaryStart
+                                              .withOpacity(0.2))
+                                      : (isDark
+                                          ? AppTheme.darkPrimaryStart
+                                              .withOpacity(0.2)
+                                          : AppTheme.lightPrimaryStart
+                                              .withOpacity(0.2)),
+                              child: Icon(
+                                Icons.person_outline_rounded,
+                                size: 30,
+                                color:
+                                    isLecturer
+                                        ? (isDark
+                                            ? AppTheme.darkSecondaryStart
+                                            : AppTheme.lightSecondaryStart)
+                                        : (isDark
+                                            ? AppTheme.darkPrimaryStart
+                                            : AppTheme.lightPrimaryStart),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(28),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_today_outlined,
-                                      size: 16,
-                                      color: Colors.white,
+                            ),
+                            if (isOffline)
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color:
+                                          isDark ? Colors.black : Colors.white,
+                                      width: 2,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Today',
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.wifi_off,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Date display with gradient container
+                    GradientContainer(
+                      useSecondaryGradient: isLecturer,
+                      padding: const EdgeInsets.all(16),
+                      borderRadius: 28,
+                      useCardStyle: false,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                DateFormat('EEEE').format(now),
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                DateFormat('MMMM d, yyyy').format(now),
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.85),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(28),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Today',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Offline indicator if offline
+                    if (isOffline)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(color: Colors.orange, width: 1),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.wifi_off,
+                              color: Colors.orange,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'You are currently offline. Some features may be limited.',
+                                style: TextStyle(
+                                  color: Colors.orange.shade800,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Statistics section
+                    _buildStatisticsSection(
+                      context,
+                      classes,
+                      isLecturer,
+                      isDark,
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Recent classes section
+                    _buildRecentClassesSection(
+                      context,
+                      classes,
+                      isLecturer,
+                      isDark,
+                    ),
+
+                    // Refreshing indicator at bottom
+                    if (_isRefreshing)
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 24),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    isLecturer
+                                        ? (isDark
+                                            ? AppTheme.darkSecondaryStart
+                                            : AppTheme.lightSecondaryStart)
+                                        : (isDark
+                                            ? AppTheme.darkPrimaryStart
+                                            : AppTheme.lightPrimaryStart),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Refreshing...',
+                                style: TextStyle(
+                                  color:
+                                      isDark
+                                          ? AppTheme.darkTextSecondary
+                                          : AppTheme.lightTextSecondary,
                                 ),
                               ),
                             ],
                           ),
                         ),
-
-                        const SizedBox(height: 24),
-
-                        // Offline indicator if offline
-                        if (isOffline)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 24),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(
-                                color: Colors.orange,
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.wifi_off,
-                                  color: Colors.orange,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'You are currently offline. Some features may be limited.',
-                                    style: TextStyle(
-                                      color: Colors.orange.shade800,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        // Statistics section
-                        _buildStatisticsSection(
-                          context,
-                          classes,
-                          isLecturer,
-                          isDark,
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Recent classes section
-                        _buildRecentClassesSection(
-                          context,
-                          classes,
-                          isLecturer,
-                          isDark,
-                        ),
-
-                        // Refreshing indicator at bottom
-                        if (_isRefreshing)
-                          Container(
-                            margin: const EdgeInsets.symmetric(vertical: 24),
-                            child: Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        isLecturer
-                                            ? (isDark
-                                                ? AppTheme.darkSecondaryStart
-                                                : AppTheme.lightSecondaryStart)
-                                            : (isDark
-                                                ? AppTheme.darkPrimaryStart
-                                                : AppTheme.lightPrimaryStart),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Refreshing...',
-                                    style: TextStyle(
-                                      color:
-                                          isDark
-                                              ? AppTheme.darkTextSecondary
-                                              : AppTheme.lightTextSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
+                      ),
+                  ],
+                ),
+              ),
+              // Loading overlay
+              if (_isLoading)
+                Container(
+                  color: Colors.black.withOpacity(0.1),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -435,6 +482,14 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     // Get the ClassProvider
     final classProvider = Provider.of<ClassProvider>(context);
     final isOffline = classProvider.isOffline;
+
+    // Calculate totals
+    int totalStudents = classProvider.totalStudents;
+    bool isUsingCachedCount = isOffline && totalStudents > 0;
+
+    // For now, show number of classes for students instead of assignments
+    // TODO: Add assignment counting when assignment data is available
+    int totalAssignments = classes.length;
 
     // Different statistics for lecturers and students
     return Column(
@@ -476,16 +531,14 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                 title: isLecturer ? 'Students' : 'Assignments',
                 value:
                     isLecturer
-                        ? (isOffline && classProvider.totalStudents == 0
-                            ? '—'
-                            : classProvider.totalStudents.toString())
-                        : '0',
+                        ? totalStudents.toString()
+                        : totalAssignments.toString(),
                 gradient:
                     isLecturer
                         ? AppTheme.secondaryGradient(isDark)
                         : AppTheme.primaryGradient(isDark),
                 isDark: isDark,
-                showOfflineIndicator: isLecturer && isOffline,
+                showOfflineIndicator: isUsingCachedCount,
               ),
             ),
           ],
@@ -543,11 +596,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                   padding: const EdgeInsets.only(left: 8.0),
                   child: Tooltip(
                     message: 'Using cached student count while offline',
-                    child: Icon(
-                      Icons.offline_bolt,
-                      size: 16,
-                      color: Colors.orange,
-                    ),
+                    child: Icon(Icons.cached, size: 16, color: Colors.orange),
                   ),
                 ),
             ],

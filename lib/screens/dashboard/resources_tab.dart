@@ -15,6 +15,7 @@ import '../../widgets/gradient_container.dart';
 import '../../models/class_model.dart';
 import '../../models/resource_model.dart';
 import '../../models/assignment_model.dart';
+import '../../utils/global_download_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ResourcesTab extends StatefulWidget {
@@ -71,12 +72,36 @@ class _ResourcesTabState extends State<ResourcesTab>
 
     _animationController.forward();
 
-    // Load data immediately
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Load cached data immediately
+    _loadFromCache().then((hasCachedData) {
+      if (hasCachedData && mounted) {
+        setState(() {
+          _isInitialLoad = false;
+        });
+      }
+
+      // Then load all data (which will first check cache, then refresh in background)
       _loadAllData();
     });
 
-    // Load downloaded files info
+    // Set up connectivity listener to detect when we go online/offline
+    Connectivity().onConnectivityChanged.listen((connectivityResults) {
+      final isOnline = connectivityResults.any(
+        (result) => result != ConnectivityResult.none,
+      );
+      if (mounted) {
+        setState(() {
+          _isOfflineMode = !isOnline;
+        });
+
+        // If we just came back online, refresh data
+        if (isOnline && _isOfflineMode) {
+          _refreshAll(showLoadingIndicator: false);
+        }
+      }
+    });
+
+    // Load downloaded files info using global download manager
     _loadDownloadedFiles();
     _loadDownloadedAssignments();
   }
@@ -120,10 +145,13 @@ class _ResourcesTabState extends State<ResourcesTab>
 
   // Load all data (classes, resources, assignments)
   Future<void> _loadAllData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    // Only show loading indicator on initial load
+    if (_isInitialLoad) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -144,34 +172,43 @@ class _ResourcesTabState extends State<ResourcesTab>
       }
 
       // Update offline mode state
-      setState(() {
-        _isOfflineMode = !isOnline;
-      });
+      if (mounted) {
+        setState(() {
+          _isOfflineMode = !isOnline;
+        });
+      }
 
       // If offline, load from cache only
       if (!isOnline) {
         final hasCachedData = await _loadFromCache();
 
-        setState(() {
-          _isLoading = false;
-          if (!hasCachedData) {
-            _error =
-                "You're offline. Connect to the internet to load your resources.";
-          }
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            if (!hasCachedData) {
+              _error =
+                  "You're offline. Connect to the internet to load your resources.";
+            }
+          });
+        }
         return;
       }
 
-      // Online: First load from cache for immediate display, then refresh from network
-      final hasCachedData = await _loadFromCache();
+      // Online: First ensure we have cached data for immediate display
+      bool hasCachedData = false;
+      if (_classes.isEmpty) {
+        hasCachedData = await _loadFromCache();
+      } else {
+        hasCachedData = true;
+      }
 
-      if (hasCachedData) {
+      if (hasCachedData && mounted && _isLoading) {
         setState(() {
           _isLoading = false;
         });
       }
 
-      // Now load fresh data from network
+      // Now load fresh data from network in the background
       try {
         // Load classes
         List<ClassModel> classes;
@@ -227,18 +264,19 @@ class _ResourcesTabState extends State<ResourcesTab>
             _resourcesByClass = resourcesByClass;
             _assignmentsByClass = assignmentsByClass;
             _isLoading = false;
+            _isInitialLoad = false;
             _isOfflineMode = false;
-            _lastUpdated = DateTime.now().toString();
+            _lastUpdated = DateTime.now().toIso8601String();
           });
         }
       } catch (e) {
         print('Error refreshing data from network: $e');
         // If refresh fails but we have cached data, just show that
-        if (hasCachedData) {
+        if (hasCachedData && mounted) {
           setState(() {
             _isLoading = false;
           });
-        } else {
+        } else if (mounted) {
           setState(() {
             _isLoading = false;
             _error = 'Error loading data: ${e.toString()}';
@@ -397,11 +435,13 @@ class _ResourcesTabState extends State<ResourcesTab>
   }
 
   // Refresh all data (force refresh from server)
-  Future<void> _refreshAll() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  Future<void> _refreshAll({bool showLoadingIndicator = true}) async {
+    if (showLoadingIndicator) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -422,23 +462,29 @@ class _ResourcesTabState extends State<ResourcesTab>
       }
 
       // Update offline mode state
-      setState(() {
-        _isOfflineMode = !isOnline;
-      });
+      if (mounted) {
+        setState(() {
+          _isOfflineMode = !isOnline;
+        });
+      }
 
       // If offline, show error or use cached data
       if (!isOnline) {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("You're offline. Showing cached data."),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+          if (showLoadingIndicator) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("You're offline. Showing cached data."),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        }
         return;
       }
 
@@ -500,16 +546,18 @@ class _ResourcesTabState extends State<ResourcesTab>
           _assignmentsByClass = assignmentsByClass;
           _isLoading = false;
           _isOfflineMode = false;
-          _lastUpdated = DateTime.now().toString();
+          _lastUpdated = DateTime.now().toIso8601String();
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Resources refreshed successfully"),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        if (showLoadingIndicator) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Resources refreshed successfully"),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     } catch (e) {
       // Handle errors
@@ -523,17 +571,19 @@ class _ResourcesTabState extends State<ResourcesTab>
             e.toString().contains('ClientException') ||
             e.toString().contains('Failed host lookup');
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isOffline
-                  ? "You're offline. Unable to refresh."
-                  : "Error refreshing: ${e.toString()}",
+        if (showLoadingIndicator) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isOffline
+                    ? "You're offline. Unable to refresh."
+                    : "Error refreshing: ${e.toString()}",
+              ),
+              backgroundColor: isOffline ? Colors.orange : Colors.red,
+              duration: const Duration(seconds: 3),
             ),
-            backgroundColor: isOffline ? Colors.orange : Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+          );
+        }
       }
       print('Error refreshing data: $e');
     }
@@ -542,30 +592,10 @@ class _ResourcesTabState extends State<ResourcesTab>
   // Load downloaded files info
   Future<void> _loadDownloadedFiles() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final fileMap = prefs.getString('downloaded_resources_all');
-
-      if (fileMap != null) {
-        setState(() {
-          _downloadedFiles = Map<String, String>.from(json.decode(fileMap));
-        });
-
-        // Verify files still exist
-        for (final resourceId in _downloadedFiles.keys.toList()) {
-          final filePath = _downloadedFiles[resourceId];
-          if (filePath != null) {
-            final file = File(filePath);
-            if (!await file.exists()) {
-              setState(() {
-                _downloadedFiles.remove(resourceId);
-              });
-            }
-          }
-        }
-
-        // Save changes if any files were removed
-        await _saveDownloadedFiles();
-      }
+      final downloadedFiles = await globalDownloadManager.loadDownloadedFiles();
+      setState(() {
+        _downloadedFiles = downloadedFiles;
+      });
     } catch (e) {
       print('Error loading downloaded files: $e');
     }
@@ -575,6 +605,7 @@ class _ResourcesTabState extends State<ResourcesTab>
   Future<void> _saveDownloadedFiles() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Save to global storage instead of per-class storage
       await prefs.setString(
         'downloaded_resources_all',
         json.encode(_downloadedFiles),
@@ -587,32 +618,11 @@ class _ResourcesTabState extends State<ResourcesTab>
   // Load downloaded assignments info
   Future<void> _loadDownloadedAssignments() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final fileMap = prefs.getString('downloaded_assignments_all');
-
-      if (fileMap != null) {
-        setState(() {
-          _downloadedAssignments = Map<String, String>.from(
-            json.decode(fileMap),
-          );
-        });
-
-        // Verify files still exist
-        for (final assignmentId in _downloadedAssignments.keys.toList()) {
-          final filePath = _downloadedAssignments[assignmentId];
-          if (filePath != null) {
-            final file = File(filePath);
-            if (!await file.exists()) {
-              setState(() {
-                _downloadedAssignments.remove(assignmentId);
-              });
-            }
-          }
-        }
-
-        // Save changes if any files were removed
-        await _saveDownloadedAssignments();
-      }
+      final downloadedAssignments =
+          await globalDownloadManager.loadDownloadedAssignments();
+      setState(() {
+        _downloadedAssignments = downloadedAssignments;
+      });
     } catch (e) {
       print('Error loading downloaded assignments: $e');
     }
@@ -622,6 +632,7 @@ class _ResourcesTabState extends State<ResourcesTab>
   Future<void> _saveDownloadedAssignments() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Save to global storage instead of per-class storage
       await prefs.setString(
         'downloaded_assignments_all',
         json.encode(_downloadedAssignments),
@@ -631,12 +642,8 @@ class _ResourcesTabState extends State<ResourcesTab>
     }
   }
 
-  // Download a file
+  // Download a file using global download manager
   Future<void> _downloadFile(ResourceModel resource) async {
-    if (_downloadProgress.containsKey(resource.id)) {
-      return; // Already downloading
-    }
-
     try {
       // Check connectivity first
       bool isOnline = true;
@@ -672,90 +679,27 @@ class _ResourcesTabState extends State<ResourcesTab>
         return;
       }
 
-      setState(() {
-        _downloadProgress[resource.id] = 0.0;
-      });
-
-      final appDir = await getApplicationDocumentsDirectory();
-      final downloadsDir = Directory('${appDir.path}/EduConnect/Downloads');
-      if (!await downloadsDir.exists()) {
-        await downloadsDir.create(recursive: true);
-      }
-
-      final uri = Uri.parse(resource.fileUrl);
-      String fileName = path.basename(uri.path);
-
-      if (!fileName.contains('.')) {
-        final extension = _getExtensionFromFileType(resource.fileType);
-        fileName = '${resource.id}$extension';
-      }
-
-      final filePath = '${downloadsDir.path}/$fileName';
-      final file = File(filePath);
-
-      if (await file.exists()) {
-        await file.delete();
-      }
-
-      final response = await http.Client().send(http.Request('GET', uri));
-      final contentLength = response.contentLength ?? 0;
-
-      final sink = file.openWrite();
-      int bytesReceived = 0;
-
-      await response.stream.listen((List<int> chunk) {
-        sink.add(chunk);
-        bytesReceived += chunk.length;
-
-        if (contentLength > 0) {
-          setState(() {
-            _downloadProgress[resource.id] = bytesReceived / contentLength;
-          });
-        }
-      }).asFuture();
-
-      await sink.flush();
-      await sink.close();
-
-      setState(() {
-        _downloadedFiles[resource.id] = filePath;
-        _downloadProgress.remove(resource.id);
-      });
-
-      await _saveDownloadedFiles();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${resource.title} downloaded successfully'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
+      // Use global download manager
+      await globalDownloadManager.downloadResource(
+        resource: resource,
+        onProgressUpdate: (progress) {
+          if (mounted) {
+            setState(() {
+              _downloadProgress = progress;
+            });
+          }
+        },
+        onComplete: (downloads) {
+          if (mounted) {
+            setState(() {
+              _downloadedFiles = downloads;
+            });
+          }
+        },
+        context: context,
+      );
     } catch (e) {
-      setState(() {
-        _downloadProgress.remove(resource.id);
-      });
-
-      if (mounted) {
-        final isOffline =
-            e.toString().contains('SocketException') ||
-            e.toString().contains('ClientException') ||
-            e.toString().contains('Failed host lookup');
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isOffline
-                  ? 'Download failed: You\'re offline. Please connect to the internet and try again.'
-                  : 'Failed to download ${resource.title}: ${e.toString()}',
-            ),
-            backgroundColor: isOffline ? Colors.orange : Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+      print('Error downloading file: $e');
     }
   }
 
@@ -797,11 +741,10 @@ class _ResourcesTabState extends State<ResourcesTab>
     }
   }
 
-  // Download assignment file
+  // Download assignment file using global download manager
   Future<void> _downloadAssignmentFile(AssignmentModel assignment) async {
-    if (_assignmentDownloadProgress.containsKey(assignment.id) ||
-        assignment.fileUrl == null) {
-      return; // Already downloading or no file URL
+    if (assignment.fileUrl == null) {
+      return; // No file URL
     }
 
     try {
@@ -839,93 +782,27 @@ class _ResourcesTabState extends State<ResourcesTab>
         return;
       }
 
-      setState(() {
-        _assignmentDownloadProgress[assignment.id] = 0.0;
-      });
-
-      final appDir = await getApplicationDocumentsDirectory();
-      final downloadsDir = Directory(
-        '${appDir.path}/EduConnect/Downloads/Assignments',
+      // Use global download manager
+      await globalDownloadManager.downloadAssignment(
+        assignment: assignment,
+        onProgressUpdate: (progress) {
+          if (mounted) {
+            setState(() {
+              _assignmentDownloadProgress = progress;
+            });
+          }
+        },
+        onComplete: (downloads) {
+          if (mounted) {
+            setState(() {
+              _downloadedAssignments = downloads;
+            });
+          }
+        },
+        context: context,
       );
-      if (!await downloadsDir.exists()) {
-        await downloadsDir.create(recursive: true);
-      }
-
-      final uri = Uri.parse(assignment.fileUrl!);
-      String fileName = path.basename(uri.path);
-
-      if (!fileName.contains('.')) {
-        final extension = _getExtensionFromFileType(assignment.fileType);
-        fileName = '${assignment.id}$extension';
-      }
-
-      final filePath = '${downloadsDir.path}/$fileName';
-      final file = File(filePath);
-
-      if (await file.exists()) {
-        await file.delete();
-      }
-
-      final response = await http.Client().send(http.Request('GET', uri));
-      final contentLength = response.contentLength ?? 0;
-
-      final sink = file.openWrite();
-      int bytesReceived = 0;
-
-      await response.stream.listen((List<int> chunk) {
-        sink.add(chunk);
-        bytesReceived += chunk.length;
-
-        if (contentLength > 0) {
-          setState(() {
-            _assignmentDownloadProgress[assignment.id] =
-                bytesReceived / contentLength;
-          });
-        }
-      }).asFuture();
-
-      await sink.flush();
-      await sink.close();
-
-      setState(() {
-        _downloadedAssignments[assignment.id] = filePath;
-        _assignmentDownloadProgress.remove(assignment.id);
-      });
-
-      await _saveDownloadedAssignments();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${assignment.title} downloaded successfully'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
     } catch (e) {
-      setState(() {
-        _assignmentDownloadProgress.remove(assignment.id);
-      });
-
-      if (mounted) {
-        final isOffline =
-            e.toString().contains('SocketException') ||
-            e.toString().contains('ClientException') ||
-            e.toString().contains('Failed host lookup');
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isOffline
-                  ? 'Download failed: You\'re offline. Please connect to the internet and try again.'
-                  : 'Failed to download ${assignment.title}: ${e.toString()}',
-            ),
-            backgroundColor: isOffline ? Colors.orange : Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+      print('Error downloading assignment: $e');
     }
   }
 

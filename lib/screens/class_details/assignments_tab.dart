@@ -17,12 +17,14 @@ class AssignmentsTab extends StatefulWidget {
   final bool isLoading;
   final Map<String, double> downloadProgress;
   final Map<String, String> downloadedFiles;
+  final Map<String, String> downloadedSubmissions;
   final Function() onRefresh;
   final Function(AssignmentModel) onDelete;
   final Function(AssignmentModel) onDownload;
   final Function(AssignmentModel) onOpen;
   final Function(AssignmentModel) onSubmit;
   final Function(AssignmentModel) onViewSubmissions;
+  final Function(AssignmentModel) onOpenSubmission;
   final Function() onCreateAssignment;
   final bool isOffline;
 
@@ -34,12 +36,14 @@ class AssignmentsTab extends StatefulWidget {
     required this.isLoading,
     required this.downloadProgress,
     required this.downloadedFiles,
+    required this.downloadedSubmissions,
     required this.onRefresh,
     required this.onDelete,
     required this.onDownload,
     required this.onOpen,
     required this.onSubmit,
     required this.onViewSubmissions,
+    required this.onOpenSubmission,
     required this.onCreateAssignment,
     this.isOffline = false,
   }) : super(key: key);
@@ -508,7 +512,51 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
                           ),
                         ),
                       )
-                    else if (isLecturer)
+                    else if (!isLecturer && hasSubmitted)
+                      widget.downloadedSubmissions.containsKey(assignment.id)
+                          ? TextButton.icon(
+                            icon: const Icon(Icons.visibility, size: 16),
+                            label: const Text('View Submission'),
+                            onPressed: () => _showSubmissionDetails(assignment),
+                            style: TextButton.styleFrom(
+                              foregroundColor:
+                                  isDark
+                                      ? AppTheme.darkPrimaryStart
+                                      : AppTheme.lightPrimaryStart,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                            ),
+                          )
+                          : TextButton.icon(
+                            icon: Icon(
+                              widget.isOffline
+                                  ? Icons.cloud_off
+                                  : Icons.visibility,
+                              size: 16,
+                            ),
+                            label: Text(
+                              widget.isOffline ? 'Offline' : 'View Submission',
+                            ),
+                            onPressed:
+                                widget.isOffline
+                                    ? null
+                                    : () => _showSubmissionDetails(assignment),
+                            style: TextButton.styleFrom(
+                              foregroundColor:
+                                  widget.isOffline
+                                      ? Colors.grey
+                                      : (isDark
+                                          ? AppTheme.darkPrimaryStart
+                                          : AppTheme.lightPrimaryStart),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                            ),
+                          ),
+                    if (isLecturer)
                       TextButton.icon(
                         icon: const Icon(Icons.people, size: 16),
                         label: const Text('View'),
@@ -547,6 +595,195 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
           onTap: () => widget.onDelete(assignment),
         ),
       ],
+    );
+  }
+
+  void _showSubmissionDetails(AssignmentModel assignment) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSubmissionDownloaded = widget.downloadedSubmissions.containsKey(
+      assignment.id,
+    );
+    final isOffline = widget.isOffline;
+
+    DialogUtils.showDetailsBottomSheet(
+      context: context,
+      title: 'Your Submission',
+      subtitle: assignment.title,
+      icon: Icons.assignment_turned_in,
+      content: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.green.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Status',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const Text(
+                        'Successfully Submitted',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (isSubmissionDownloaded) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: (isDark ? AppTheme.darkSurface : Colors.white),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: (isDark
+                              ? AppTheme.darkPrimaryStart
+                              : AppTheme.lightPrimaryStart)
+                          .withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.description,
+                      color:
+                          isDark
+                              ? AppTheme.darkPrimaryStart
+                              : AppTheme.lightPrimaryStart,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Your Submission File',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                isDark
+                                    ? AppTheme.darkTextSecondary
+                                    : AppTheme.lightTextSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Available Offline',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('Open'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onOpenSubmission(assignment);
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor:
+                          isDark
+                              ? AppTheme.darkPrimaryStart
+                              : AppTheme.lightPrimaryStart,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isOffline ? Icons.cloud_off : Icons.cloud_download,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Submission File',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          isOffline
+                              ? 'Go online to download your submission'
+                              : 'Download to view offline',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

@@ -1974,6 +1974,93 @@ END;
     }
   }
 
+  // Get a student's own submission for an assignment
+  Future<SubmissionModel?> getStudentSubmission({
+    required String assignmentId,
+    required String studentId,
+  }) async {
+    try {
+      final currentUser = _client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User is not authenticated');
+      }
+
+      // Only allow students to get their own submissions
+      if (currentUser.id != studentId) {
+        throw Exception('You can only access your own submissions');
+      }
+
+      // Get the submission
+      final submissions = await _client
+          .from('submissions')
+          .select()
+          .eq('assignment_id', assignmentId)
+          .eq('student_id', studentId)
+          .limit(1);
+
+      if (submissions.isEmpty) {
+        return null;
+      }
+
+      final submission = submissions.first;
+
+      // Get student profile information
+      final studentProfile =
+          await _client
+              .from('profiles')
+              .select('full_name, student_number')
+              .eq('id', studentId)
+              .single();
+
+      // Create submission data with profile info
+      final submissionData = {...submission};
+      submissionData['student_name'] = studentProfile['full_name'];
+      submissionData['student_number'] = studentProfile['student_number'];
+
+      // Determine file type
+      if (submission['file_url'] != null) {
+        final fileUrl = submission['file_url'] as String;
+        final fileExtension = fileUrl.split('.').last.toLowerCase();
+        String fileType = 'Document';
+
+        switch (fileExtension.toLowerCase()) {
+          case 'pdf':
+            fileType = 'PDF';
+            break;
+          case 'doc':
+          case 'docx':
+            fileType = 'Word';
+            break;
+          case 'xls':
+          case 'xlsx':
+            fileType = 'Excel';
+            break;
+          case 'ppt':
+          case 'pptx':
+            fileType = 'PowerPoint';
+            break;
+          case 'jpg':
+          case 'jpeg':
+          case 'png':
+          case 'gif':
+            fileType = 'Image';
+            break;
+          case 'txt':
+            fileType = 'Text';
+            break;
+        }
+
+        submissionData['file_type'] = fileType;
+      } else {
+        submissionData['file_type'] = 'None';
+      }
+
+      return SubmissionModel.fromJson(submissionData);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Get submissions for an assignment (for lecturers)
   Future<List<SubmissionModel>> getAssignmentSubmissions(
     String assignmentId,
