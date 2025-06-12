@@ -2159,6 +2159,52 @@ END;
     }
   }
 
+  // Upload profile image
+  Future<String> uploadProfileImage({
+    required String userId,
+    required File imageFile,
+  }) async {
+    try {
+      // Create a unique filename
+      final uuid = Uuid();
+      final fileExtension = path.extension(imageFile.path);
+      final fileName = 'profile_${userId}_${uuid.v4()}$fileExtension';
+
+      // Upload to Supabase storage
+      final response = await _client.storage
+          .from('profile-images')
+          .upload('public/$fileName', imageFile);
+
+      // Get the public URL
+      final imageUrl = _client.storage
+          .from('profile-images')
+          .getPublicUrl('public/$fileName');
+
+      return imageUrl;
+    } catch (e) {
+      print('Error uploading profile image: $e');
+      rethrow;
+    }
+  }
+
+  // Delete profile image
+  Future<void> deleteProfileImage(String imageUrl) async {
+    try {
+      // Extract the file path from the URL
+      final uri = Uri.parse(imageUrl);
+      final pathSegments = uri.pathSegments;
+      final bucketIndex = pathSegments.indexOf('profile-images');
+
+      if (bucketIndex != -1 && bucketIndex < pathSegments.length - 1) {
+        final filePath = pathSegments.skip(bucketIndex + 1).join('/');
+        await _client.storage.from('profile-images').remove([filePath]);
+      }
+    } catch (e) {
+      print('Error deleting profile image: $e');
+      // Don't rethrow - we don't want profile updates to fail if image deletion fails
+    }
+  }
+
   // Update student profile
   Future<app_models.Student> updateStudentProfile({
     required String userId,
@@ -2167,8 +2213,33 @@ END;
     required String institution,
     required String level,
     String? phoneNumber,
+    File? profileImage,
   }) async {
     try {
+      String? newImageUrl;
+
+      // Handle profile image upload
+      if (profileImage != null) {
+        // Get current profile to check for existing image
+        final currentProfile =
+            await _client
+                .from('profiles')
+                .select('profile_image_url')
+                .eq('id', userId)
+                .single();
+
+        // Delete old image if it exists
+        if (currentProfile['profile_image_url'] != null) {
+          await deleteProfileImage(currentProfile['profile_image_url']);
+        }
+
+        // Upload new image
+        newImageUrl = await uploadProfileImage(
+          userId: userId,
+          imageFile: profileImage,
+        );
+      }
+
       final updatedData =
           await _client
               .from('profiles')
@@ -2178,6 +2249,7 @@ END;
                 'institution': institution,
                 'level': level,
                 if (phoneNumber != null) 'phone_number': phoneNumber,
+                if (newImageUrl != null) 'profile_image_url': newImageUrl,
               })
               .eq('id', userId)
               .select()
@@ -2196,8 +2268,33 @@ END;
     required String staffId,
     required String department,
     String? phoneNumber,
+    File? profileImage,
   }) async {
     try {
+      String? newImageUrl;
+
+      // Handle profile image upload
+      if (profileImage != null) {
+        // Get current profile to check for existing image
+        final currentProfile =
+            await _client
+                .from('profiles')
+                .select('profile_image_url')
+                .eq('id', userId)
+                .single();
+
+        // Delete old image if it exists
+        if (currentProfile['profile_image_url'] != null) {
+          await deleteProfileImage(currentProfile['profile_image_url']);
+        }
+
+        // Upload new image
+        newImageUrl = await uploadProfileImage(
+          userId: userId,
+          imageFile: profileImage,
+        );
+      }
+
       final updatedData =
           await _client
               .from('profiles')
@@ -2206,6 +2303,7 @@ END;
                 'staff_id': staffId,
                 'department': department,
                 if (phoneNumber != null) 'phone_number': phoneNumber,
+                if (newImageUrl != null) 'profile_image_url': newImageUrl,
               })
               .eq('id', userId)
               .select()

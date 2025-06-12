@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/user_model.dart';
 import '../../widgets/custom_text_field.dart';
@@ -31,6 +34,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
+  File? _profileImage;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -69,6 +74,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        setState(() {
+          _profileImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeImage() async {
+    setState(() {
+      _profileImage = null;
+    });
+  }
+
   Future<void> _updateProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -94,6 +131,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           institution: _institutionController.text.trim(),
           level: _levelController.text.trim(),
           phoneNumber: phoneNumber,
+          profileImage: _profileImage,
         );
       } else if (user is Lecturer) {
         await authProvider.updateLecturerProfile(
@@ -101,6 +139,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           staffId: _staffIdController.text.trim(),
           department: _departmentController.text.trim(),
           phoneNumber: phoneNumber,
+          profileImage: _profileImage,
         );
       }
 
@@ -141,34 +180,179 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Profile image with gradient border
+                // Profile image with gradient border and edit capability
                 Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient:
-                          isLecturer
-                              ? AppTheme.secondaryGradient(isDark)
-                              : AppTheme.primaryGradient(isDark),
-                    ),
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor:
-                          isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-                      child: Icon(
-                        Icons.person_outline_rounded,
-                        size: 50,
-                        color:
-                            isLecturer
-                                ? (isDark
-                                    ? AppTheme.darkSecondaryStart
-                                    : AppTheme.lightSecondaryStart)
-                                : (isDark
-                                    ? AppTheme.darkPrimaryStart
-                                    : AppTheme.lightPrimaryStart),
+                  child: Stack(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient:
+                              isLecturer
+                                  ? AppTheme.secondaryGradient(isDark)
+                                  : AppTheme.primaryGradient(isDark),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(46),
+                          child: Container(
+                            width: 92,
+                            height: 92,
+                            color:
+                                isDark
+                                    ? AppTheme.darkSurface
+                                    : AppTheme.lightSurface,
+                            child:
+                                _profileImage != null
+                                    ? Image.file(
+                                      _profileImage!,
+                                      width: 92,
+                                      height: 92,
+                                      fit: BoxFit.cover,
+                                    )
+                                    : (Provider.of<AuthProvider>(
+                                              context,
+                                            ).currentUser?.profileImageUrl !=
+                                            null
+                                        ? CachedNetworkImage(
+                                          imageUrl:
+                                              Provider.of<AuthProvider>(
+                                                context,
+                                              ).currentUser!.profileImageUrl!,
+                                          width: 92,
+                                          height: 92,
+                                          fit: BoxFit.cover,
+                                          placeholder:
+                                              (context, url) => Center(
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor: AlwaysStoppedAnimation<
+                                                    Color
+                                                  >(
+                                                    isLecturer
+                                                        ? (isDark
+                                                            ? AppTheme
+                                                                .darkSecondaryStart
+                                                            : AppTheme
+                                                                .lightSecondaryStart)
+                                                        : (isDark
+                                                            ? AppTheme
+                                                                .darkPrimaryStart
+                                                            : AppTheme
+                                                                .lightPrimaryStart),
+                                                  ),
+                                                ),
+                                              ),
+                                          errorWidget:
+                                              (context, url, error) => Icon(
+                                                Icons.person_outline_rounded,
+                                                size: 50,
+                                                color:
+                                                    isLecturer
+                                                        ? (isDark
+                                                            ? AppTheme
+                                                                .darkSecondaryStart
+                                                            : AppTheme
+                                                                .lightSecondaryStart)
+                                                        : (isDark
+                                                            ? AppTheme
+                                                                .darkPrimaryStart
+                                                            : AppTheme
+                                                                .lightPrimaryStart),
+                                              ),
+                                          cacheKey:
+                                              'profile_edit_${Provider.of<AuthProvider>(context).currentUser!.profileImageUrl!.hashCode}',
+                                        )
+                                        : Icon(
+                                          Icons.person_outline_rounded,
+                                          size: 50,
+                                          color:
+                                              isLecturer
+                                                  ? (isDark
+                                                      ? AppTheme
+                                                          .darkSecondaryStart
+                                                      : AppTheme
+                                                          .lightSecondaryStart)
+                                                  : (isDark
+                                                      ? AppTheme
+                                                          .darkPrimaryStart
+                                                      : AppTheme
+                                                          .lightPrimaryStart),
+                                        )),
+                          ),
+                        ),
                       ),
-                    ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color:
+                                isLecturer
+                                    ? (isDark
+                                        ? AppTheme.darkSecondaryStart
+                                        : AppTheme.lightSecondaryStart)
+                                    : (isDark
+                                        ? AppTheme.darkPrimaryStart
+                                        : AppTheme.lightPrimaryStart),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkSurface
+                                      : AppTheme.lightSurface,
+                              width: 2,
+                            ),
+                          ),
+                          child: PopupMenuButton<String>(
+                            icon: const Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            onSelected: (value) {
+                              if (value == 'camera') {
+                                _pickImage();
+                              } else if (value == 'remove') {
+                                _removeImage();
+                              }
+                            },
+                            itemBuilder:
+                                (context) => [
+                                  const PopupMenuItem(
+                                    value: 'camera',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.photo_library),
+                                        SizedBox(width: 8),
+                                        Text('Choose from Gallery'),
+                                      ],
+                                    ),
+                                  ),
+                                  if (_profileImage != null ||
+                                      Provider.of<AuthProvider>(
+                                            context,
+                                            listen: false,
+                                          ).currentUser?.profileImageUrl !=
+                                          null)
+                                    const PopupMenuItem(
+                                      value: 'remove',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.delete, color: Colors.red),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Remove Photo',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 

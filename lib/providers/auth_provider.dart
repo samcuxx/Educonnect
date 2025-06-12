@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/supabase_service.dart';
@@ -321,6 +322,7 @@ class AuthProvider extends ChangeNotifier {
     required String institution,
     required String level,
     String? phoneNumber,
+    File? profileImage,
   }) async {
     _status = AuthStatus.loading;
     _errorMessage = null;
@@ -338,6 +340,7 @@ class AuthProvider extends ChangeNotifier {
         institution: institution,
         level: level,
         phoneNumber: phoneNumber,
+        profileImage: profileImage,
       );
 
       _currentUser = updatedUser;
@@ -357,6 +360,7 @@ class AuthProvider extends ChangeNotifier {
     required String staffId,
     required String department,
     String? phoneNumber,
+    File? profileImage,
   }) async {
     _status = AuthStatus.loading;
     _errorMessage = null;
@@ -373,6 +377,7 @@ class AuthProvider extends ChangeNotifier {
         staffId: staffId,
         department: department,
         phoneNumber: phoneNumber,
+        profileImage: profileImage,
       );
 
       _currentUser = updatedUser;

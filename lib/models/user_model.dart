@@ -5,6 +5,7 @@ abstract class User {
   final String email;
   final String userType; // 'student' or 'lecturer'
   final String? phoneNumber;
+  final String? profileImageUrl;
 
   User({
     required this.id,
@@ -12,6 +13,7 @@ abstract class User {
     required this.email,
     required this.userType,
     this.phoneNumber,
+    this.profileImageUrl,
   });
 }
 
@@ -29,6 +31,7 @@ class Student extends User {
     required this.institution,
     required this.level,
     super.phoneNumber,
+    super.profileImageUrl,
   }) : super(userType: 'student');
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -40,6 +43,7 @@ class Student extends User {
       institution: json['institution'],
       level: json['level'],
       phoneNumber: json['phone_number'],
+      profileImageUrl: json['profile_image_url'],
     );
   }
 
@@ -53,6 +57,7 @@ class Student extends User {
       'institution': institution,
       'level': level,
       'phone_number': phoneNumber,
+      'profile_image_url': profileImageUrl,
     };
   }
 }
@@ -69,6 +74,7 @@ class Lecturer extends User {
     required this.staffId,
     required this.department,
     super.phoneNumber,
+    super.profileImageUrl,
   }) : super(userType: 'lecturer');
 
   factory Lecturer.fromJson(Map<String, dynamic> json) {
@@ -79,6 +85,7 @@ class Lecturer extends User {
       staffId: json['staff_id'],
       department: json['department'],
       phoneNumber: json['phone_number'],
+      profileImageUrl: json['profile_image_url'],
     );
   }
 
@@ -91,6 +98,7 @@ class Lecturer extends User {
       'staff_id': staffId,
       'department': department,
       'phone_number': phoneNumber,
+      'profile_image_url': profileImageUrl,
     };
   }
 }

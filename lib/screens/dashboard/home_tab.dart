@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/gradient_container.dart';
+import '../../widgets/cached_profile_image.dart';
 import '../../models/user_model.dart';
 import '../class_details_screen.dart';
 
@@ -248,32 +249,13 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                         const Spacer(),
                         Stack(
                           children: [
-                            CircleAvatar(
+                            CachedProfileImage(
+                              imageUrl: user?.profileImageUrl,
+                              fullName: user?.fullName ?? 'User',
                               radius: 26,
-                              backgroundColor:
-                                  isLecturer
-                                      ? (isDark
-                                          ? AppTheme.darkSecondaryStart
-                                              .withOpacity(0.2)
-                                          : AppTheme.lightSecondaryStart
-                                              .withOpacity(0.2))
-                                      : (isDark
-                                          ? AppTheme.darkPrimaryStart
-                                              .withOpacity(0.2)
-                                          : AppTheme.lightPrimaryStart
-                                              .withOpacity(0.2)),
-                              child: Icon(
-                                Icons.person_outline_rounded,
-                                size: 30,
-                                color:
-                                    isLecturer
-                                        ? (isDark
-                                            ? AppTheme.darkSecondaryStart
-                                            : AppTheme.lightSecondaryStart)
-                                        : (isDark
-                                            ? AppTheme.darkPrimaryStart
-                                            : AppTheme.lightPrimaryStart),
-                              ),
+                              isLecturer: isLecturer,
+                              isDark: isDark,
+                              gradientPadding: const EdgeInsets.all(2),
                             ),
                             if (isOffline)
                               Positioned(
