@@ -395,6 +395,37 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Change user password
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      if (_currentUser == null) {
+        return false;
+      }
+
+      // First verify the current password is correct
+      final isCurrentPasswordValid = await _supabaseService.verifyPassword(
+        email: _currentUser!.email,
+        password: currentPassword,
+      );
+
+      if (!isCurrentPasswordValid) {
+        return false;
+      }
+
+      // If current password is valid, update to new password
+      return await _supabaseService.updateUserPassword(
+        userId: _currentUser!.id,
+        newPassword: newPassword,
+      );
+    } catch (e) {
+      print('Error changing password: $e');
+      return false;
+    }
+  }
+
   // Format error messages to be more user-friendly
   String _formatErrorMessage(String errorMsg) {
     // Convert Supabase error messages to more user-friendly ones

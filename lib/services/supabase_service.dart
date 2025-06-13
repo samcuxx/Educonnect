@@ -222,6 +222,46 @@ END;
     }
   }
 
+  // Verify user's current password
+  Future<bool> verifyPassword({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      // Try to sign in with the provided credentials without affecting current session
+      final response = await _client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      // If we got a user back, the password is correct
+      return response.user != null;
+    } catch (e) {
+      print('Error verifying password: $e');
+      return false;
+    }
+  }
+
+  // Update user password
+  Future<bool> updateUserPassword({
+    required String userId,
+    required String newPassword,
+  }) async {
+    try {
+      // Use the same database function as resetUserPassword
+      final result = await _client.rpc(
+        'reset_user_password',
+        params: {'user_id': userId, 'new_password': newPassword},
+      );
+
+      print('Password updated successfully for user: $userId');
+      return true;
+    } catch (e) {
+      print('Error updating user password: $e');
+      return false;
+    }
+  }
+
   // Sign up a new student
   Future<void> signUpStudent({
     required String email,

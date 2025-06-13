@@ -9,6 +9,10 @@ import '../../widgets/gradient_button.dart';
 import '../../widgets/cached_profile_image.dart';
 import '../../models/user_model.dart';
 import '../profile/edit_profile_screen.dart';
+import '../profile/help_center_screen.dart';
+import '../profile/feedback_screen.dart';
+import '../profile/about_screen.dart';
+import '../profile/privacy_security_screen.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({Key? key}) : super(key: key);
@@ -275,7 +279,12 @@ class _ProfileTabState extends State<ProfileTab> {
             title: 'Privacy & Security',
             subtitle: 'Manage your account security',
             onTap: () {
-              // TODO: Navigate to security settings
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PrivacySecurityScreen(),
+                ),
+              );
             },
             isDark: isDark,
           ),
@@ -394,7 +403,12 @@ class _ProfileTabState extends State<ProfileTab> {
             title: 'Help Center',
             subtitle: 'Find answers to common questions',
             onTap: () {
-              // TODO: Navigate to help center
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HelpCenterScreen(),
+                ),
+              );
             },
             isDark: isDark,
           ),
@@ -406,7 +420,10 @@ class _ProfileTabState extends State<ProfileTab> {
             title: 'Send Feedback',
             subtitle: 'Help us improve the app',
             onTap: () {
-              // TODO: Navigate to feedback
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FeedbackScreen()),
+              );
             },
             isDark: isDark,
           ),
@@ -418,7 +435,10 @@ class _ProfileTabState extends State<ProfileTab> {
             title: 'About',
             subtitle: 'App version and information',
             onTap: () {
-              // TODO: Show about dialog
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AboutScreen()),
+              );
             },
             isDark: isDark,
           ),
