@@ -565,7 +565,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
         if (title == 'My Classes' || title == 'My Courses') {
           _navigateToTab(1); // Navigate to Classes tab
         } else if (title == 'Students') {
-          _navigateToTab(1); // Navigate to Classes tab
+          _navigateToTab(3); // Navigate to Students tab for lecturers
         } else if (title == 'Assignments') {
           _navigateToTab(
             2,

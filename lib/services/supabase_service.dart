@@ -652,6 +652,70 @@ END;
     }
   }
 
+  // Get detailed student profiles for a specific class
+  Future<List<Map<String, dynamic>>> getClassStudents(String classId) async {
+    try {
+      // Get all class memberships for the specified class
+      final memberships = await _client
+          .from('class_members')
+          .select('id, user_id, joined_at')
+          .eq('class_id', classId);
+
+      if ((memberships as List).isEmpty) {
+        return [];
+      }
+
+      // Extract user IDs from memberships
+      final userIds = memberships.map((m) => m['user_id'] as String).toList();
+
+      // Get student profiles for these user IDs
+      final profiles = await _client
+          .from('profiles')
+          .select('*')
+          .inFilter('id', userIds)
+          .eq('user_type', 'student');
+
+      // Create a map of user_id to joined_at date for quick lookup
+      final joinedDates = {
+        for (var membership in memberships)
+          membership['user_id'] as String: DateTime.parse(
+            membership['joined_at'],
+          ),
+      };
+
+      // Combine membership info with student profiles
+      final List<Map<String, dynamic>> studentDetails = [];
+      for (var profile in profiles) {
+        final userId = profile['id'] as String;
+        studentDetails.add({
+          ...profile,
+          'joined_at': joinedDates[userId]?.toIso8601String(),
+          // Find membership id
+          'membership_id':
+              memberships.firstWhere(
+                (m) => m['user_id'] == userId,
+                orElse: () => {'id': null},
+              )['id'],
+        });
+      }
+
+      return studentDetails;
+    } catch (e) {
+      print('Error fetching class students: $e');
+      rethrow;
+    }
+  }
+
+  // Remove a student from a class
+  Future<void> removeStudentFromClass(String membershipId) async {
+    try {
+      await _client.from('class_members').delete().eq('id', membershipId);
+    } catch (e) {
+      print('Error removing student from class: $e');
+      rethrow;
+    }
+  }
+
   // Leave a class (for students)
   Future<void> leaveClass(String classId) async {
     try {
@@ -1350,12 +1414,35 @@ END;
               // Send SMS to each student individually for better delivery rate
               for (final phoneNumber in phoneNumbers) {
                 try {
-                  final success = await _mnotifyService.sendSms(
-                    recipient: phoneNumber,
-                    message: smsMessage,
-                  );
+                  // Try up to 2 times for announcements to ensure delivery
+                  bool success = false;
+                  int attempts = 0;
 
-                  print('SMS to $phoneNumber success: $success');
+                  while (!success && attempts < 2) {
+                    attempts++;
+                    print('SMS attempt $attempts to $phoneNumber');
+
+                    success = await _mnotifyService.sendSms(
+                      recipient: phoneNumber,
+                      message: smsMessage,
+                    );
+
+                    if (success) {
+                      print(
+                        'SMS to $phoneNumber success after $attempts attempt(s)',
+                      );
+                      break;
+                    } else if (attempts < 2) {
+                      // Wait briefly before retry
+                      await Future.delayed(const Duration(seconds: 1));
+                    }
+                  }
+
+                  if (!success) {
+                    print(
+                      'Failed to send SMS to $phoneNumber after multiple attempts',
+                    );
+                  }
                 } catch (individualSmsError) {
                   print(
                     'Error sending individual SMS to $phoneNumber: $individualSmsError',

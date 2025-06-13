@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/student_management_provider.dart';
 import '../../utils/app_theme.dart';
 import 'home_tab.dart';
 import 'classes_tab.dart';
 import 'resources_tab.dart';
 import 'profile_tab.dart';
+import '../lecturer/students_tab.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -119,6 +121,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // Resources tab - Shows all resources
               ResourcesTab(routeArguments: _routeArguments),
 
+              // Students tab - Only for lecturers
+              if (isLecturer)
+                ChangeNotifierProvider(
+                  create:
+                      (context) => StudentManagementProvider(
+                        Provider.of<AuthProvider>(
+                          context,
+                          listen: false,
+                        ).supabaseService,
+                      ),
+                  child: const StudentsTab(),
+                ),
+
               // Profile tab - Shows user profile
               const ProfileTab(),
             ],
@@ -140,9 +155,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 6.0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildTabItem(
                   context: context,
@@ -165,11 +180,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   index: 2,
                   isDark: isDark,
                 ),
+                if (isLecturer)
+                  _buildTabItem(
+                    context: context,
+                    icon: Icons.people_rounded,
+                    label: 'Students',
+                    index: 3,
+                    isDark: isDark,
+                  ),
                 _buildTabItem(
                   context: context,
                   icon: Icons.person_rounded,
                   label: 'Profile',
-                  index: 3,
+                  index: isLecturer ? 4 : 3,
                   isDark: isDark,
                 ),
               ],
@@ -211,7 +234,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         decoration: BoxDecoration(
           gradient: isSelected ? selectedGradient : null,
           color: isSelected ? null : Colors.transparent,
@@ -223,13 +246,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Icon(
               icon,
               color: isSelected ? Colors.white : unselectedColor,
-              size: 24,
+              size: 22,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected ? Colors.white : unselectedColor,
               ),

@@ -34,6 +34,14 @@ class AppTheme {
   static const Color lightSurface = Colors.white; // Solid white for light mode
   static const Color darkSurface = Color(0xFF091c31); // Very dark blue
 
+  // Surface variant colors
+  static const Color lightSurfaceVariant = Color(0xFFF5F5F5); // Light gray
+  static const Color darkSurfaceVariant = Color(0xFF1a2942); // Darker blue
+
+  // Input fill colors
+  static const Color lightInputFill = Color(0xFFF8F8F8); // Very light gray
+  static const Color darkInputFill = Color(0xFF132236); // Dark blue-gray
+
   // Text colors
   static const Color lightTextPrimary = Color(0xFF222222); // Dark gray
   static const Color darkTextPrimary = Color(0xFF94a9c9); // Light blue-gray
@@ -44,6 +52,10 @@ class AppTheme {
   static const Color darkTextSecondary = Color(
     0xFF94a9c9,
   ); // Same as primary for now
+
+  // Tertiary text colors
+  static const Color lightTextTertiary = Color(0xFF666666); // Medium gray
+  static const Color darkTextTertiary = Color(0xFF718096); // Medium blue-gray
 
   // Border colors
   static const Color lightBorder = Color(0xFFe5e5e5); // Light gray

@@ -3,12 +3,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_theme.dart';
 
 class DialogUtils {
-  // Show confirmation dialog before leaving or deleting a class
-  static Future<bool> showConfirmationDialog(
-    BuildContext context,
-    String title,
-    String message,
-  ) async {
+  // Show confirmation dialog before action
+  static Future<bool> showConfirmationDialog({
+    required BuildContext context,
+    required String title,
+    required String message,
+    String confirmButtonText = 'Confirm',
+    String cancelButtonText = 'Cancel',
+    bool isDangerous = false,
+  }) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final result = await showDialog<bool>(
       context: context,
       builder:
@@ -18,12 +23,17 @@ class DialogUtils {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+                child: Text(cancelButtonText),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Confirm'),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text(
+                  confirmButtonText,
+                  style: TextStyle(
+                    color: isDangerous ? Colors.red : null,
+                    fontWeight: isDangerous ? FontWeight.bold : null,
+                  ),
+                ),
               ),
             ],
           ),

@@ -5,6 +5,7 @@ import 'services/supabase_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/class_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/student_management_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_role_select_screen.dart';
 import 'screens/auth/student_signup_screen.dart';
@@ -18,7 +19,6 @@ import 'utils/route_guard.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'services/app_initializer.dart';
 import 'services/connectivity_service.dart';
-import 'providers/resource_provider.dart';
 
 // Replace these with your own Supabase project credentials
 // You can find these in your Supabase project settings > API
@@ -45,7 +45,9 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthProvider(supabaseService)),
         ChangeNotifierProvider(create: (_) => ClassProvider(supabaseService)),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-
+        ChangeNotifierProvider(
+          create: (_) => StudentManagementProvider(supabaseService),
+        ),
         Provider<ConnectivityService>(create: (_) => ConnectivityService()),
       ],
       child: const MyApp(),
@@ -164,18 +166,18 @@ class AuthWrapper extends StatelessWidget {
         authProvider.status == AuthStatus.initial) {
       return Scaffold(
         body: Column(
-            children: [
+          children: [
             buildOfflineIndicator(),
             Expanded(
               child: Center(
                 child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
-                ),
-              ),
-            ],
+            ),
+          ],
         ),
       );
     }
