@@ -3,6 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'dart:io';
 import '../../providers/auth_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../providers/student_management_provider.dart';
@@ -27,6 +32,7 @@ class _StudentsTabState extends State<StudentsTab>
   final TextEditingController _searchController = TextEditingController();
   String? _selectedClassId;
   final bool _isSearchFocused = false;
+  bool _isGeneratingPdf = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -182,6 +188,235 @@ class _StudentsTabState extends State<StudentsTab>
     );
   }
 
+  Future<void> _generateClassList() async {
+    if (_selectedClassId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a class first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final studentProvider = Provider.of<StudentManagementProvider>(
+      context,
+      listen: false,
+    );
+    final classProvider = Provider.of<ClassProvider>(context, listen: false);
+    final students = studentProvider.students;
+
+    if (students.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No students to generate list for'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Find the selected class
+    final selectedClass = classProvider.classes.firstWhere(
+      (cls) => cls.id == _selectedClassId,
+      orElse:
+          () => ClassModel(
+            id: '',
+            name: 'Unknown Class',
+            code: '',
+            courseCode: 'Unknown',
+            level: '',
+            startDate: DateTime.now(),
+            endDate: DateTime.now().add(const Duration(days: 90)),
+            createdBy: '',
+            createdAt: DateTime.now(),
+          ),
+    );
+
+    setState(() {
+      _isGeneratingPdf = true;
+    });
+
+    try {
+      // Create PDF document
+      final pdf = pw.Document();
+
+      // Add page with class list
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Header
+                pw.Header(
+                  level: 0,
+                  child: pw.Text(
+                    'Class List: ${selectedClass.name} (${selectedClass.courseCode})',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+
+                pw.SizedBox(height: 10),
+
+                // Date
+                pw.Text(
+                  'Generated on: ${DateTime.now().toString().split('.')[0]}',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+
+                pw.SizedBox(height: 20),
+
+                // Table header
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.grey300),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(1),
+                    1: const pw.FlexColumnWidth(4),
+                    2: const pw.FlexColumnWidth(4),
+                    3: const pw.FlexColumnWidth(3),
+                  },
+                  children: [
+                    // Header row
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(
+                        color: PdfColors.grey200,
+                      ),
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(
+                            '#',
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(
+                            'Student Name',
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(
+                            'Student ID',
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(
+                            'Date Joined',
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Student rows
+                    ...List.generate(students.length, (index) {
+                      final student = students[index];
+                      return pw.TableRow(
+                        children: [
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text('${index + 1}'),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text(student.fullName),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text(student.studentNumber),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(8),
+                            child: pw.Text(student.joinedAtFormatted),
+                          ),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+
+                pw.SizedBox(height: 20),
+
+                // Summary
+                pw.Text(
+                  'Total Students: ${students.length}',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                ),
+
+                pw.Spacer(),
+
+                // Footer
+                pw.Footer(
+                  title: pw.Text(
+                    'Generated by EduConnect',
+                    style: const pw.TextStyle(
+                      fontSize: 10,
+                      color: PdfColors.grey700,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      // Save PDF to a temporary file
+      final output = await getTemporaryDirectory();
+      final file = File(
+        '${output.path}/class_list_${selectedClass.courseCode}.pdf',
+      );
+      await file.writeAsBytes(await pdf.save());
+
+      // Share the PDF
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Class List - ${selectedClass.courseCode}',
+        text:
+            'Class List for ${selectedClass.name} (${selectedClass.courseCode})',
+      );
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Class list generated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate class list: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeneratingPdf = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -203,19 +438,66 @@ class _StudentsTabState extends State<StudentsTab>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Title with gradient
-                  ShaderMask(
-                    shaderCallback:
-                        (bounds) => AppTheme.secondaryGradient(
-                          isDark,
-                        ).createShader(bounds),
-                    child: Text(
-                      'Student Management',
-                      style: GoogleFonts.inter(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ShaderMask(
+                          shaderCallback:
+                              (bounds) => AppTheme.secondaryGradient(
+                                isDark,
+                              ).createShader(bounds),
+                          child: Text(
+                            'Student Management',
+                            style: GoogleFonts.inter(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+
+                      // Generate class list button
+                      if (classes.isNotEmpty && _selectedClassId != null)
+                        ElevatedButton.icon(
+                          onPressed:
+                              _isGeneratingPdf ? null : _generateClassList,
+                          icon:
+                              _isGeneratingPdf
+                                  ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                  : const Icon(Icons.list_alt, size: 16),
+                          label: Text(
+                            _isGeneratingPdf
+                                ? 'Generating...'
+                                : 'Generate List',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                isDark
+                                    ? AppTheme.darkSecondaryStart
+                                    : AppTheme.lightSecondaryStart,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(28),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Text(
