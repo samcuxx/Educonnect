@@ -19,7 +19,9 @@ import '../../utils/global_download_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ResourcesTab extends StatefulWidget {
-  const ResourcesTab({Key? key}) : super(key: key);
+  final Map<String, dynamic>? routeArguments;
+
+  const ResourcesTab({Key? key, this.routeArguments}) : super(key: key);
 
   @override
   State<ResourcesTab> createState() => _ResourcesTabState();
@@ -71,6 +73,11 @@ class _ResourcesTabState extends State<ResourcesTab>
     );
 
     _animationController.forward();
+
+    // Check if we should show a specific view based on route arguments
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkRouteArguments();
+    });
 
     // Load cached data immediately
     _loadFromCache().then((hasCachedData) {
@@ -2117,6 +2124,35 @@ class _ResourcesTabState extends State<ResourcesTab>
       }
     } catch (e) {
       return 'unknown time';
+    }
+  }
+
+  // Check for route arguments to determine which view to show
+  void _checkRouteArguments() {
+    // First check widget arguments
+    if (widget.routeArguments != null &&
+        widget.routeArguments!.containsKey('resourcesView')) {
+      final view = widget.routeArguments!['resourcesView'] as String;
+      if (mounted) {
+        setState(() {
+          _selectedView = view;
+        });
+      }
+      return;
+    }
+
+    // Fallback to ModalRoute if needed
+    final modalRoute = ModalRoute.of(context);
+    if (modalRoute != null && modalRoute.settings.arguments != null) {
+      final args = modalRoute.settings.arguments as Map<String, dynamic>?;
+      if (args != null && args.containsKey('resourcesView')) {
+        final view = args['resourcesView'] as String;
+        if (mounted) {
+          setState(() {
+            _selectedView = view;
+          });
+        }
+      }
     }
   }
 }

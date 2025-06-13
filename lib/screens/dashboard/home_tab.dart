@@ -10,6 +10,7 @@ import '../../widgets/gradient_container.dart';
 import '../../widgets/cached_profile_image.dart';
 import '../../models/user_model.dart';
 import '../class_details_screen.dart';
+import 'dashboard_screen.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({Key? key}) : super(key: key);
@@ -25,6 +26,18 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   StreamSubscription? _connectivitySubscription;
+
+  // Navigate to a specific dashboard page with tab index
+  void _navigateToTab(int index, {String? resourcesView}) {
+    Map<String, dynamic> args = {'tabIndex': index};
+
+    // If navigating to resources tab and a specific view is requested
+    if (index == 2 && resourcesView != null) {
+      args['resourcesView'] = resourcesView;
+    }
+
+    Navigator.pushReplacementNamed(context, '/dashboard', arguments: args);
+  }
 
   @override
   void initState() {
@@ -247,39 +260,47 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                           ],
                         ),
                         const Spacer(),
-                        Stack(
-                          children: [
-                            CachedProfileImage(
-                              imageUrl: user?.profileImageUrl,
-                              fullName: user?.fullName ?? 'User',
-                              radius: 26,
-                              isLecturer: isLecturer,
-                              isDark: isDark,
-                              gradientPadding: const EdgeInsets.all(2),
-                            ),
-                            if (isOffline)
-                              Positioned(
-                                right: 0,
-                                bottom: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color:
-                                          isDark ? Colors.black : Colors.white,
-                                      width: 2,
+                        GestureDetector(
+                          onTap: () {
+                            // Navigate to Profile tab (index 3)
+                            _navigateToTab(3);
+                          },
+                          child: Stack(
+                            children: [
+                              CachedProfileImage(
+                                imageUrl: user?.profileImageUrl,
+                                fullName: user?.fullName ?? 'User',
+                                radius: 26,
+                                isLecturer: isLecturer,
+                                isDark: isDark,
+                                gradientPadding: const EdgeInsets.all(2),
+                              ),
+                              if (isOffline)
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color:
+                                            isDark
+                                                ? Colors.black
+                                                : Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.wifi_off,
+                                      size: 12,
+                                      color: Colors.white,
                                     ),
                                   ),
-                                  child: const Icon(
-                                    Icons.wifi_off,
-                                    size: 12,
-                                    color: Colors.white,
-                                  ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -538,63 +559,85 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     required bool isDark,
     bool showOfflineIndicator = false,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(icon, color: Colors.white, size: 20),
+    return GestureDetector(
+      onTap: () {
+        // Navigate based on which card was clicked
+        if (title == 'My Classes' || title == 'My Courses') {
+          _navigateToTab(1); // Navigate to Classes tab
+        } else if (title == 'Students') {
+          _navigateToTab(1); // Navigate to Classes tab
+        } else if (title == 'Assignments') {
+          _navigateToTab(
+            2,
+            resourcesView: 'assignments',
+          ); // Navigate to Resources tab with assignments view
+        } else if (title == 'Resources') {
+          _navigateToTab(
+            2,
+            resourcesView: 'resources',
+          ); // Navigate to Resources tab with resources view
+        } else {
+          _navigateToTab(2); // Default to Resources tab with overview
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+            width: 1,
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color:
-                      isDark
-                          ? AppTheme.darkTextPrimary
-                          : AppTheme.lightTextPrimary,
-                ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(20),
               ),
-              if (showOfflineIndicator)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: Tooltip(
-                    message: 'Using cached student count while offline',
-                    child: Icon(Icons.cached, size: 16, color: Colors.orange),
+              child: Icon(icon, color: Colors.white, size: 20),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Text(
+                  value,
+                  style: GoogleFonts.inter(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color:
+                        isDark
+                            ? AppTheme.darkTextPrimary
+                            : AppTheme.lightTextPrimary,
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color:
-                  isDark
-                      ? AppTheme.darkTextSecondary
-                      : AppTheme.lightTextSecondary,
+                if (showOfflineIndicator)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: Tooltip(
+                      message: 'Using cached student count while offline',
+                      child: Icon(Icons.cached, size: 16, color: Colors.orange),
+                    ),
+                  ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color:
+                    isDark
+                        ? AppTheme.darkTextSecondary
+                        : AppTheme.lightTextSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -625,7 +668,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             TextButton(
               onPressed: () {
                 // Navigate to Classes tab (index 1)
-                DefaultTabController.of(context)?.animateTo(1);
+                _navigateToTab(1);
               },
               child: Text(
                 'View All',

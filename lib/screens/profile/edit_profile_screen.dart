@@ -35,6 +35,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   File? _profileImage;
+  bool _shouldRemoveProfileImage = false;
   final ImagePicker _imagePicker = ImagePicker();
 
   @override
@@ -86,6 +87,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (image != null) {
         setState(() {
           _profileImage = File(image.path);
+          _shouldRemoveProfileImage =
+              false; // Reset remove flag when new image is selected
         });
       }
     } catch (e) {
@@ -103,6 +106,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _removeImage() async {
     setState(() {
       _profileImage = null;
+      _shouldRemoveProfileImage = true;
     });
   }
 
@@ -132,6 +136,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           level: _levelController.text.trim(),
           phoneNumber: phoneNumber,
           profileImage: _profileImage,
+          removeProfileImage: _shouldRemoveProfileImage,
         );
       } else if (user is Lecturer) {
         await authProvider.updateLecturerProfile(
@@ -140,6 +145,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           department: _departmentController.text.trim(),
           phoneNumber: phoneNumber,
           profileImage: _profileImage,
+          removeProfileImage: _shouldRemoveProfileImage,
         );
       }
 
@@ -210,10 +216,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       height: 92,
                                       fit: BoxFit.cover,
                                     )
-                                    : (Provider.of<AuthProvider>(
-                                              context,
-                                            ).currentUser?.profileImageUrl !=
-                                            null
+                                    : (!_shouldRemoveProfileImage &&
+                                            Provider.of<AuthProvider>(context)
+                                                    .currentUser
+                                                    ?.profileImageUrl !=
+                                                null
                                         ? CachedNetworkImage(
                                           imageUrl:
                                               Provider.of<AuthProvider>(
@@ -330,11 +337,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     ),
                                   ),
                                   if (_profileImage != null ||
-                                      Provider.of<AuthProvider>(
-                                            context,
-                                            listen: false,
-                                          ).currentUser?.profileImageUrl !=
-                                          null)
+                                      (!_shouldRemoveProfileImage &&
+                                          Provider.of<AuthProvider>(
+                                                context,
+                                                listen: false,
+                                              ).currentUser?.profileImageUrl !=
+                                              null))
                                     const PopupMenuItem(
                                       value: 'remove',
                                       child: Row(

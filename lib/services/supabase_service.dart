@@ -2214,20 +2214,31 @@ END;
     required String level,
     String? phoneNumber,
     File? profileImage,
+    bool removeProfileImage = false,
   }) async {
     try {
       String? newImageUrl;
+      bool shouldUpdateImageUrl = false;
 
+      // Get current profile to check for existing image
+      final currentProfile =
+          await _client
+              .from('profiles')
+              .select('profile_image_url')
+              .eq('id', userId)
+              .single();
+
+      // Handle profile image removal
+      if (removeProfileImage) {
+        // Delete current image if it exists
+        if (currentProfile['profile_image_url'] != null) {
+          await deleteProfileImage(currentProfile['profile_image_url']);
+        }
+        newImageUrl = null;
+        shouldUpdateImageUrl = true;
+      }
       // Handle profile image upload
-      if (profileImage != null) {
-        // Get current profile to check for existing image
-        final currentProfile =
-            await _client
-                .from('profiles')
-                .select('profile_image_url')
-                .eq('id', userId)
-                .single();
-
+      else if (profileImage != null) {
         // Delete old image if it exists
         if (currentProfile['profile_image_url'] != null) {
           await deleteProfileImage(currentProfile['profile_image_url']);
@@ -2238,19 +2249,26 @@ END;
           userId: userId,
           imageFile: profileImage,
         );
+        shouldUpdateImageUrl = true;
+      }
+
+      final updateData = <String, dynamic>{
+        'full_name': fullName,
+        'student_number': studentNumber,
+        'institution': institution,
+        'level': level,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+      };
+
+      // Only update profile_image_url if we're explicitly changing it
+      if (shouldUpdateImageUrl) {
+        updateData['profile_image_url'] = newImageUrl;
       }
 
       final updatedData =
           await _client
               .from('profiles')
-              .update({
-                'full_name': fullName,
-                'student_number': studentNumber,
-                'institution': institution,
-                'level': level,
-                if (phoneNumber != null) 'phone_number': phoneNumber,
-                if (newImageUrl != null) 'profile_image_url': newImageUrl,
-              })
+              .update(updateData)
               .eq('id', userId)
               .select()
               .single();
@@ -2269,20 +2287,31 @@ END;
     required String department,
     String? phoneNumber,
     File? profileImage,
+    bool removeProfileImage = false,
   }) async {
     try {
       String? newImageUrl;
+      bool shouldUpdateImageUrl = false;
 
+      // Get current profile to check for existing image
+      final currentProfile =
+          await _client
+              .from('profiles')
+              .select('profile_image_url')
+              .eq('id', userId)
+              .single();
+
+      // Handle profile image removal
+      if (removeProfileImage) {
+        // Delete current image if it exists
+        if (currentProfile['profile_image_url'] != null) {
+          await deleteProfileImage(currentProfile['profile_image_url']);
+        }
+        newImageUrl = null;
+        shouldUpdateImageUrl = true;
+      }
       // Handle profile image upload
-      if (profileImage != null) {
-        // Get current profile to check for existing image
-        final currentProfile =
-            await _client
-                .from('profiles')
-                .select('profile_image_url')
-                .eq('id', userId)
-                .single();
-
+      else if (profileImage != null) {
         // Delete old image if it exists
         if (currentProfile['profile_image_url'] != null) {
           await deleteProfileImage(currentProfile['profile_image_url']);
@@ -2293,18 +2322,25 @@ END;
           userId: userId,
           imageFile: profileImage,
         );
+        shouldUpdateImageUrl = true;
+      }
+
+      final updateData = <String, dynamic>{
+        'full_name': fullName,
+        'staff_id': staffId,
+        'department': department,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+      };
+
+      // Only update profile_image_url if we're explicitly changing it
+      if (shouldUpdateImageUrl) {
+        updateData['profile_image_url'] = newImageUrl;
       }
 
       final updatedData =
           await _client
               .from('profiles')
-              .update({
-                'full_name': fullName,
-                'staff_id': staffId,
-                'department': department,
-                if (phoneNumber != null) 'phone_number': phoneNumber,
-                if (newImageUrl != null) 'profile_image_url': newImageUrl,
-              })
+              .update(updateData)
               .eq('id', userId)
               .select()
               .single();

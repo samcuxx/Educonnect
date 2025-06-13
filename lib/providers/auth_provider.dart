@@ -323,6 +323,7 @@ class AuthProvider extends ChangeNotifier {
     required String level,
     String? phoneNumber,
     File? profileImage,
+    bool removeProfileImage = false,
   }) async {
     _status = AuthStatus.loading;
     _errorMessage = null;
@@ -341,6 +342,7 @@ class AuthProvider extends ChangeNotifier {
         level: level,
         phoneNumber: phoneNumber,
         profileImage: profileImage,
+        removeProfileImage: removeProfileImage,
       );
 
       _currentUser = updatedUser;
@@ -361,6 +363,7 @@ class AuthProvider extends ChangeNotifier {
     required String department,
     String? phoneNumber,
     File? profileImage,
+    bool removeProfileImage = false,
   }) async {
     _status = AuthStatus.loading;
     _errorMessage = null;
@@ -378,6 +381,7 @@ class AuthProvider extends ChangeNotifier {
         department: department,
         phoneNumber: phoneNumber,
         profileImage: profileImage,
+        removeProfileImage: removeProfileImage,
       );
 
       _currentUser = updatedUser;
