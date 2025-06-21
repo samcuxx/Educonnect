@@ -28,4 +28,4 @@ class ClassMemberModel {
       'joined_at': joinedAt.toIso8601String(),
     };
   }
-} 
+}

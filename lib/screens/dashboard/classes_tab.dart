@@ -13,7 +13,9 @@ import '../lecturer/edit_class_screen.dart';
 import '../student/join_class_screen.dart';
 
 class ClassesTab extends StatefulWidget {
-  const ClassesTab({Key? key}) : super(key: key);
+  final Function(int)? onNavigateToTab;
+
+  const ClassesTab({Key? key, this.onNavigateToTab}) : super(key: key);
 
   @override
   State<ClassesTab> createState() => _ClassesTabState();
@@ -608,33 +610,96 @@ class _ClassesTabState extends State<ClassesTab> {
                             ),
                         ],
                       ),
-                      // View toggle button
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color:
-                              isDark ? AppTheme.darkBorder : Colors.grey[200],
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                        child: Row(
-                          children: [
-                            _buildViewToggleButton(
-                              icon: Icons.grid_view_outlined,
-                              isSelected: _isGridView,
-                              onTap: () => setState(() => _isGridView = true),
-                              isDark: isDark,
-                              isLecturer: isLecturer,
+                      Row(
+                        children: [
+                          // Resources button for lecturers
+                          if (isLecturer)
+                            Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(20),
+                                  onTap: () {
+                                    // Navigate to resources tab (index 2)
+                                    if (widget.onNavigateToTab != null) {
+                                      widget.onNavigateToTab!(2);
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: AppTheme.secondaryGradient(
+                                        isDark,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color:
+                                            isDark
+                                                ? AppTheme.darkBorder
+                                                : AppTheme.lightBorder,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.folder_outlined,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Resources',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                            _buildViewToggleButton(
-                              icon: Icons.view_list_outlined,
-                              isSelected: !_isGridView,
-                              onTap: () => setState(() => _isGridView = false),
-                              isDark: isDark,
-                              isLecturer: isLecturer,
+                          // View toggle button
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color:
+                                  isDark
+                                      ? AppTheme.darkBorder
+                                      : Colors.grey[200],
+                              borderRadius: BorderRadius.circular(28),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              children: [
+                                _buildViewToggleButton(
+                                  icon: Icons.grid_view_outlined,
+                                  isSelected: _isGridView,
+                                  onTap:
+                                      () => setState(() => _isGridView = true),
+                                  isDark: isDark,
+                                  isLecturer: isLecturer,
+                                ),
+                                _buildViewToggleButton(
+                                  icon: Icons.view_list_outlined,
+                                  isSelected: !_isGridView,
+                                  onTap:
+                                      () => setState(() => _isGridView = false),
+                                  isDark: isDark,
+                                  isLecturer: isLecturer,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

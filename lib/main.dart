@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'services/supabase_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/class_provider.dart';
+import 'providers/chat_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/student_management_provider.dart';
 import 'screens/auth/login_screen.dart';
@@ -19,6 +20,8 @@ import 'utils/route_guard.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'services/app_initializer.dart';
 import 'services/connectivity_service.dart';
+import 'services/mnotify_service.dart';
+import 'utils/app_config.dart';
 
 // Replace these with your own Supabase project credentials
 // You can find these in your Supabase project settings > API
@@ -44,6 +47,13 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider(supabaseService)),
         ChangeNotifierProvider(create: (_) => ClassProvider(supabaseService)),
+        ChangeNotifierProvider(
+          create:
+              (_) => ChatProvider(
+                supabaseService,
+                MNotifyService(apiKey: AppConfig.mNotifyApiKey),
+              ),
+        ),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(
           create: (_) => StudentManagementProvider(supabaseService),

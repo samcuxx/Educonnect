@@ -3,10 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/student_management_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../services/mnotify_service.dart';
 import '../../utils/app_theme.dart';
 import 'home_tab.dart';
 import 'classes_tab.dart';
 import 'resources_tab.dart';
+import 'chats_tab.dart';
 import 'profile_tab.dart';
 import '../lecturer/students_tab.dart';
 
@@ -116,10 +119,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const HomeTab(),
 
               // Classes tab - Shows all classes
-              const ClassesTab(),
+              ClassesTab(onNavigateToTab: _onTabTapped),
 
-              // Resources tab - Shows all resources
-              ResourcesTab(routeArguments: _routeArguments),
+              // Resources tab - Shows all resources (only for students)
+              if (!isLecturer) ResourcesTab(routeArguments: _routeArguments),
+
+              // Chats tab - Shows all conversations
+              ChangeNotifierProvider(
+                create:
+                    (context) => ChatProvider(
+                      Provider.of<AuthProvider>(
+                        context,
+                        listen: false,
+                      ).supabaseService,
+                      MNotifyService(
+                        apiKey: 'your_mnotify_api_key',
+                      ), // Replace with actual API key
+                    ),
+                child: const ChatsTab(),
+              ),
 
               // Students tab - Only for lecturers
               if (isLecturer)
@@ -173,11 +191,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   index: 1,
                   isDark: isDark,
                 ),
+                // Show resources tab only for students
+                if (!isLecturer)
+                  _buildTabItem(
+                    context: context,
+                    icon: Icons.folder_rounded,
+                    label: 'Resources',
+                    index: 2,
+                    isDark: isDark,
+                  ),
                 _buildTabItem(
                   context: context,
-                  icon: Icons.folder_rounded,
-                  label: 'Resources',
-                  index: 2,
+                  icon: Icons.chat_rounded,
+                  label: 'Chats',
+                  index: !isLecturer ? 3 : 2,
                   isDark: isDark,
                 ),
                 if (isLecturer)
@@ -192,7 +219,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   context: context,
                   icon: Icons.person_rounded,
                   label: 'Profile',
-                  index: isLecturer ? 4 : 3,
+                  index: 4,
                   isDark: isDark,
                 ),
               ],
